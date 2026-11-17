@@ -105,17 +105,9 @@ TileInstance   def: TileDef, vars: small int array, ownerId?
 
 ### 2.4 Event resolution: the contract
 
-This is the part that makes new pieces predictable. It gets written up as `docs/RESOLUTION_RULES.md` and pinned by tests.
+**Superseded (2026-11-17).** The sequential event queue first sketched here (depth-first reactions, per-event before/after hooks, numeric priorities) was replaced by **simultaneous wave resolution**, modelled on a PLC scan cycle. Every rule reads one frozen snapshot, the engine resolves conflicts with fixed rules, and the batch commits atomically. Waves repeat until nothing changes. Ordering by iteration order or priority numbers is gone.
 
-1. **One compound event per player move.** `MoveEvent{piece, from, to, captures?: targetId}` is applied atomically: remove the target, then move the attacker. Replacements act on the whole thing. Guardian cancels it; Piercing rewrites it to "move past, capture landing piece"; Bouncer rewrites it to "push target, move in". No side-channel cancellation (A5).
-2. **One death notification.** Any removal (capture, destroy, explosion, burn) emits `PieceDied{pieceId, square, killerId?, cause}` after it's applied. Revenant, Exploding, ChronoCapture ("on kill" by `killerId`), and Scapegoat all key off this. Ranged kills set `killerId` correctly (fixes B3).
-3. **Phases per event:** validate → **before-hooks** (pass, modify, cancel, or replace with a list) → apply → **after-hooks** (emit reactions).
-4. **Subscribers are looked up from the *current* state for each event**, using an index of event type to subscribers that's maintained as pieces, tiles, and abilities change (fixes A1).
-5. **Deterministic order:** priority, then source category (rule < global/relic < tile < piece), then stable id. Board position never matters (fixes A7).
-6. **Depth-first reactions:** an event's reactions fully resolve before its next sibling, so "cause, then its consequences" reads naturally in the trace. (Alternative: breadth-first, as today. See Open Questions.)
-7. **Loop safety without `sourceId` hacks:** a given hook may replace a given event lineage only once. Each event carries the set of replacers in its ancestry.
-8. **Budget overflow rolls back the whole action** via the undo log and marks it illegal (fixes A8).
-9. **Trace:** every resolution can emit a cause tree (`event → hook → reaction`) for debugging and the sandbox UI.
+The full contract lives in [RESOLUTION_RULES.md](RESOLUTION_RULES.md). It still delivers the fixes this section promised: one death fact with correct kill credit (B3); captures as plain proposals with no side-channel cancellation (A5); a live, not stale, view of state each wave (A1); a board-visible canonical order instead of scan order (A7); rollback on overflow (A8); and a per-wave trace.
 
 ### 2.5 Turn structure: one code path for game and AI
 
@@ -231,7 +223,7 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 ## 6. Open questions
 
 1. ~~**Language:** C# or GDScript?~~ **Decided: C#.**
-2. **Reaction order:** depth-first (recommended) or keep today's breadth-first? This changes outcomes in chain explosions, so we pick one and lock it with tests.
+2. ~~**Reaction order:** depth-first or breadth-first?~~ **Decided: neither. Simultaneous wave resolution (PLC-style scan cycle). See [RESOLUTION_RULES.md](RESOLUTION_RULES.md).**
 3. **Default win rule:** capture the royal piece (as the roguelike does today), or real check/checkmate? Should "can't leave the king capturable" be enforced?
 4. **Revenant:** revive once or forever?
 5. **Bouncer:** push the target one square or the attacker's full distance?
