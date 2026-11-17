@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://sandbox/Sandbox.cs" id="1_sandbox"]
+
+[sub_resource type="SystemFont" id="SystemFont_mono"]
+font_names = PackedStringArray("Consolas", "Menlo", "DejaVu Sans Mono", "Monospace")
 
 [node name="Sandbox" type="Control"]
 layout_mode = 3
@@ -20,5 +23,6 @@ anchor_right = 0.5
 anchor_bottom = 0.5
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_fonts/font = SubResource("SystemFont_mono")
+theme_override_font_sizes/font_size = 20
 text = "Loading engine..."
-horizontal_alignment = 1

@@ -186,13 +186,22 @@ The engine is a separate project that the Godot assembly references. A test (`En
 | M | Deliverable | Done when |
 |---|---|---|
 | **M0** ✅ | Bootstrap: Godot 4.7 .NET project, engine library, xUnit tests, CI, README | `dotnet test` green; sandbox scene prints from the engine in Godot .NET headless |
-| **M1** | State + ops + undo + Zobrist; standard pieces via movement primitives; standard rules | Perft matches known counts at depth 4 on the start position plus 2 tactical positions; make/unmake fuzz is clean |
+| **M1** ✅ | State + ops + undo + Zobrist; standard pieces via movement primitives; standard rules | Perft matches known counts at depth 4 on the start position plus 2 tactical positions; make/unmake fuzz is clean |
 | **M2** | Resolver (§2.4), `PlayTurn`, trace, JSON map importer, scenario runner, `RESOLUTION_RULES.md` | Scenario harness runs; ordering and loop and rollback rules each have a test |
 | **M3** | Content port, each item with scenarios (see §5) | All 25 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end |
 | **M4** | AI: search, eval, profiles, threading, debug output | Finds mate-in-1/2, avoids hanging the royal piece, respects Exploding/Guardian in tactics; nodes/sec benchmark recorded vs the TS `EfficientAI` on the same positions |
 | **M5** | Debug sandbox scene | Load map, play both sides or vs AI, view trace and AI top-N |
 
 M1–M2 are the critical path. M3 can run in parallel per content family once M2's API is frozen.
+
+### M1 as built (2026-11-17)
+
+- **State** (`Core/GameState.cs`): flat `Piece?[]` and `Tile[]` arrays plus a piece dictionary by id. Eight logged operations (spawn, remove, move, moves-made, def, tile, turn, en passant). Each one keeps the hash up to date and is undone with `UndoTo(mark)`. `Clone()` makes a thread-safe copy.
+- **Hash** (`Core/Zobrist.cs`): keys are derived by mixing (category, def id hash, side, square), with no tables, so any board size or number of defs works and hashes are stable across runs. The "has moved" flag is hashed only for royal and castling pieces, so move-and-return sequences still transpose.
+- **Content** (`Content/`): `PieceDef` (data + movement list + tags), `TileDef` (flags `BlocksPassage` and `BlocksLanding`), and movement primitives `Slide`, `Leap`, `PawnMovement`. The six standard pieces are pure data.
+- **Rules** (`Rules/`): `RuleSet.Standard` (check, castling, en passant, under-promotion) and `RuleSet.Rogue` (capture the royal piece, no castling or en passant, auto-queen). Castling works on any board width and is driven by moves-made, not rights bits. `MoveApplier` applies moves directly; M2 wraps it in the event resolver.
+- **Verified:** perft matches published counts for the start position (d4), Kiwipete (d4, 4,085,603), positions 3 (d5), 4 and 4-mirrored (d4), and 5 (d3). Random self-play fuzz (4 positions × 40 games × 120 plies) checks the incremental hash against a full recompute after every move and requires an exact state restore after unwinding. 48 tests take about 3 s in Release.
+- **Speed baseline:** in the Godot editor (Debug build), the start position perft(4) runs at about 450k nodes/s. Legality is checked by make/unmake plus a scan of every attacker, and there is no piece list yet, so M4 has clear room to optimise.
 
 ---
 
