@@ -1,0 +1,8 @@
+<Project>
+  <!-- Shared settings for every C# project in the repo (Godot assembly, engine, tests). -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+</Project>

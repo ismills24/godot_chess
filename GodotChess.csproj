@@ -1,0 +1,16 @@
+<Project Sdk="Godot.NET.Sdk/4.7.2">
+  <!-- Godot-facing assembly: scenes, sandbox, presentation. Game rules live in src/RogueChess.Engine (no Godot dependency). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>GodotChess</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Godot.NET.Sdk globs every *.cs under the project root; the engine and tests are separate projects. -->
+    <Compile Remove="src/**/*.cs;tests/**/*.cs" />
+    <None Remove="src/**/*.cs;tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="src/RogueChess.Engine/RogueChess.Engine.csproj" />
+  </ItemGroup>
+</Project>

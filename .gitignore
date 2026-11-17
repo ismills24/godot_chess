@@ -1,0 +1,21 @@
+# Godot 4+
+.godot/
+.nomedia
+.import/
+export.cfg
+export_credentials.cfg
+*.tmp
+*.translation
+
+# Mono / .NET
+.mono/
+data_*/
+mono_crash.*.json
+**/bin/
+**/obj/
+*.user
+.vs/
+[Tt]est[Rr]esults/
+
+# Local editor add-on (installed separately, redistribution-restricted)
+/addons/ziva_agent/

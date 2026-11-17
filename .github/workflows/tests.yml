@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  engine-tests:
+    name: Engine (xUnit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore tests/RogueChess.Engine.Tests/RogueChess.Engine.Tests.csproj
+
+      - name: Build
+        run: dotnet build tests/RogueChess.Engine.Tests/RogueChess.Engine.Tests.csproj --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test tests/RogueChess.Engine.Tests/RogueChess.Engine.Tests.csproj --no-build --configuration Release --logger "console;verbosity=normal"
+
+  godot-build:
+    name: Godot assembly builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Godot.NET.Sdk comes from NuGet, so the Godot-facing assembly compiles without a Godot install.
+      - name: Build Godot assembly
+        run: dotnet build GodotChess.csproj --configuration Debug
