@@ -10,12 +10,12 @@ namespace RogueChess.Engine.Content;
 public abstract class Movement
 {
     /// <summary>Append pseudo-legal moves for <paramref name="piece"/> (owned by the side to move).</summary>
-    public abstract void Generate(GameState state, Piece piece, List<Move> moves);
+    public abstract void Generate(IBoardView state, Piece piece, List<Move> moves);
 
     /// <summary>Whether <paramref name="piece"/> could capture something standing on <paramref name="target"/>.</summary>
-    public abstract bool Attacks(GameState state, Piece piece, int target);
+    public abstract bool Attacks(IBoardView state, Piece piece, int target);
 
-    protected static bool CanLandOn(GameState state, int sq) => !state.TileAt(sq).Def.BlocksLanding;
+    protected static bool CanLandOn(IBoardView state, int sq) => !state.TileAt(sq).Def.BlocksLanding;
 }
 
 /// <summary>Moves any number of squares (up to <see cref="MaxRange"/>, 0 = unlimited) along each direction.</summary>
@@ -36,7 +36,7 @@ public sealed class Slide : Movement
     public int MaxRange { get; }
     public IReadOnlyList<(int Dx, int Dy)> Directions => _dirs;
 
-    public override void Generate(GameState s, Piece p, List<Move> moves)
+    public override void Generate(IBoardView s, Piece p, List<Move> moves)
     {
         int px = s.FileOf(p.Square), py = s.RankOf(p.Square);
         foreach (var (dx, dy) in _dirs)
@@ -62,7 +62,7 @@ public sealed class Slide : Movement
         }
     }
 
-    public override bool Attacks(GameState s, Piece p, int target)
+    public override bool Attacks(IBoardView s, Piece p, int target)
     {
         if (!CanLandOn(s, target)) return false;
         int px = s.FileOf(p.Square), py = s.RankOf(p.Square);
@@ -97,7 +97,7 @@ public sealed class Leap : Movement
 
     public IReadOnlyList<(int Dx, int Dy)> Offsets => _offsets;
 
-    public override void Generate(GameState s, Piece p, List<Move> moves)
+    public override void Generate(IBoardView s, Piece p, List<Move> moves)
     {
         int px = s.FileOf(p.Square), py = s.RankOf(p.Square);
         foreach (var (dx, dy) in _offsets)
@@ -112,7 +112,7 @@ public sealed class Leap : Movement
         }
     }
 
-    public override bool Attacks(GameState s, Piece p, int target)
+    public override bool Attacks(IBoardView s, Piece p, int target)
     {
         if (!CanLandOn(s, target)) return false;
         int dx = s.FileOf(target) - s.FileOf(p.Square), dy = s.RankOf(target) - s.RankOf(p.Square);
@@ -132,7 +132,7 @@ public sealed class PawnMovement : Movement
 
     public bool DoubleStep { get; }
 
-    public override void Generate(GameState s, Piece p, List<Move> moves)
+    public override void Generate(IBoardView s, Piece p, List<Move> moves)
     {
         int dir = p.Side.Forward();
         int px = s.FileOf(p.Square), py = s.RankOf(p.Square);
@@ -174,20 +174,20 @@ public sealed class PawnMovement : Movement
         }
     }
 
-    public override bool Attacks(GameState s, Piece p, int target)
+    public override bool Attacks(IBoardView s, Piece p, int target)
     {
         if (!CanLandOn(s, target)) return false;
         int dx = s.FileOf(target) - s.FileOf(p.Square), dy = s.RankOf(target) - s.RankOf(p.Square);
         return dy == p.Side.Forward() && (dx == 1 || dx == -1);
     }
 
-    private static bool Passable(GameState s, int sq)
+    private static bool Passable(IBoardView s, int sq)
     {
         var def = s.TileAt(sq).Def;
         return !def.BlocksLanding && !def.BlocksPassage;
     }
 
-    private static void AddPawnMove(GameState s, Piece p, int to, MoveFlags flags, List<Move> moves)
+    private static void AddPawnMove(IBoardView s, Piece p, int to, MoveFlags flags, List<Move> moves)
     {
         int lastRank = p.Side == Side.White ? s.Height - 1 : 0;
         var options = s.Rules.PromotionOptions;

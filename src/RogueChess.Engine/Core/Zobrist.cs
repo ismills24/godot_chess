@@ -12,6 +12,13 @@ internal static class Zobrist
     public const ulong TileCategory = 3;
     public const ulong SideCategory = 4;
     public const ulong EnPassantCategory = 5;
+    public const ulong AbilityCategory = 6;
+    public const ulong AbilityVarCategory = 7;
+    public const ulong TileVarCategory = 8;
+    public const ulong GlobalCategory = 9;
+    public const ulong GlobalVarCategory = 10;
+    public const ulong RandomCategory = 11;
+    public const ulong FactCategory = 12;
 
     /// <summary>SplitMix64 finalizer.</summary>
     public static ulong Mix(ulong z)

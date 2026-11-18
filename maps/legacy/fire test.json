@@ -1,0 +1,57 @@
+{
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "King",
+      "color": "White",
+      "x": 2,
+      "y": 2,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 4,
+      "y": 4,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 3,
+      "y": 3,
+      "decorators": ["OnFire"]
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 5,
+      "y": 5,
+      "decorators": ["FireMage"]
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 1,
+      "y": 1,
+      "decorators": ["WallPlacement"]
+    },
+    {
+      "type": "Knight",
+      "color": "White",
+      "x": 6,
+      "y": 6,
+      "decorators": []
+    }
+  ],
+  "tiles": [
+    {
+      "type": "FireTile",
+      "x": 3,
+      "y": 3
+    }
+  ]
+}
+

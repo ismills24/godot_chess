@@ -8,10 +8,10 @@ namespace RogueChess.Engine.Notation;
 /// <summary>Square names ("e4") and coordinate move strings ("e2e4", "e7e8q") for any board up to 26 files.</summary>
 public static class MoveText
 {
-    public static string SquareName(GameState s, int sq)
+    public static string SquareName(IBoardView s, int sq)
         => $"{(char)('a' + s.FileOf(sq))}{s.RankOf(sq) + 1}";
 
-    public static int ParseSquare(GameState s, string name)
+    public static int ParseSquare(IBoardView s, string name)
     {
         if (name.Length < 2 || name[0] < 'a' || name[0] > 'z' || !int.TryParse(name.AsSpan(1), out int rank))
             throw new FormatException($"Bad square name '{name}'.");

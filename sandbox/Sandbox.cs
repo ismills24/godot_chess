@@ -4,6 +4,7 @@ using Godot;
 using RogueChess.Engine;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Notation;
+using RogueChess.Engine.Resolution;
 using RogueChess.Engine.Rules;
 using Side = RogueChess.Engine.Core.Side;
 
@@ -26,11 +27,20 @@ public partial class Sandbox : Control
         sw.Stop();
         double knps = nodes / sw.Elapsed.TotalSeconds / 1000.0;
 
+        // Play a short line through the resolver and keep the trace of the capture.
+        TurnTrace? lastTrace = null;
+        foreach (var uci in new[] { "e2e4", "d7d5", "e4d5" })
+        {
+            var move = MoveText.FindLegal(state, uci)!.Value;
+            lastTrace = Game.PlayTurn(state, move, new ResolveOptions(Trace: true)).Trace;
+        }
+
         // Explicit '\n': AppendLine emits "\r\n" on Windows, which a Label renders as two line breaks.
         var text = new StringBuilder();
         text.Append($"{EngineInfo.Name} (resolution contract v{EngineInfo.ResolutionContractVersion})\n\n");
         text.Append(Board(state)).Append("\n\n");
-        text.Append($"perft({PerftDepth}) = {nodes:N0} nodes in {sw.ElapsedMilliseconds} ms ({knps:N0} knps)");
+        text.Append($"perft({PerftDepth}) = {nodes:N0} nodes in {sw.ElapsedMilliseconds} ms ({knps:N0} knps)\n\n");
+        text.Append("Trace of 3. exd5:\n").Append(lastTrace!.Format(state).TrimEnd());
 
         GetNode<Label>("Status").Text = text.ToString();
         GD.Print($"[Sandbox] perft({PerftDepth}) = {nodes} in {sw.ElapsedMilliseconds} ms ({knps:F0} knps)");

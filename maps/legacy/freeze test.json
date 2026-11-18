@@ -1,0 +1,74 @@
+{
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "King",
+      "color": "White",
+      "x": 2,
+      "y": 2,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 5,
+      "y": 5,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 3,
+      "y": 3,
+      "decorators": ["Frozen"]
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 1,
+      "y": 1,
+      "decorators": ["FreezeMage"]
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 4,
+      "y": 2,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "Black",
+      "x": 6,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Queen",
+      "color": "Black",
+      "x": 7,
+      "y": 7,
+      "decorators": []
+    }
+  ],
+  "tiles": [
+    {
+      "type": "FreezeTile",
+      "x": 4,
+      "y": 4
+    },
+    {
+      "type": "FreezeTile",
+      "x": 3,
+      "y": 5
+    },
+    {
+      "type": "FreezeTile",
+      "x": 5,
+      "y": 3
+    }
+  ]
+}
+

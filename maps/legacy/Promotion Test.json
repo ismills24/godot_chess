@@ -1,0 +1,51 @@
+{
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 7,
+      "y": 1,
+      "decorators": [
+        "Cannibal"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 6,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 5,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "White",
+      "x": 6,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 0,
+      "y": 0,
+      "decorators": []
+    }
+  ],
+  "tiles": [
+    {
+      "type": "SlipperyTile",
+      "x": 5,
+      "y": 6
+    }
+  ]
+}

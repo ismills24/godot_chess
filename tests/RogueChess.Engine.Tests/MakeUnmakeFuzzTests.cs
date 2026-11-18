@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Notation;
+using RogueChess.Engine.Resolution;
 using RogueChess.Engine.Rules;
 using Xunit;
 
@@ -51,7 +52,7 @@ public class MakeUnmakeFuzzTests
                 if (moves.Count == 0) break;
 
                 marks.Push(s.UndoDepth);
-                MoveApplier.Apply(s, moves[rng.Next(moves.Count)]);
+                Assert.True(Game.PlayTurn(s, moves[rng.Next(moves.Count)]).Accepted);
                 Assert.Equal(s.ComputeHashFromScratch(), s.Hash);
 
                 if (ply % 15 == 0)

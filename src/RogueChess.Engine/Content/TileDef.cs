@@ -3,19 +3,21 @@ using RogueChess.Engine.Core;
 namespace RogueChess.Engine.Content;
 
 /// <summary>
-/// Stateless description of a tile type. Movement restrictions are flags that move generation reads
-/// directly, so tiles need no code to block or allow movement.
+/// Description of a tile type. Movement restrictions are flags that move generation reads directly.
+/// Behavior (fire spreading, guardian protection...) comes from overriding the <see cref="Behavior"/> hooks.
+/// Per-tile state goes in variables (slots 0..VarCount-1).
 /// </summary>
-public sealed class TileDef
+public class TileDef : Behavior
 {
     public static readonly TileDef Standard = new("standard", "Standard");
 
-    public TileDef(string id, string name, bool blocksPassage = false, bool blocksLanding = false)
+    public TileDef(string id, string name, bool blocksPassage = false, bool blocksLanding = false, int varCount = 0)
     {
         Id = id;
         Name = name;
         BlocksPassage = blocksPassage;
         BlocksLanding = blocksLanding;
+        VarCount = varCount;
         HashId = Zobrist.StableHash(id);
     }
 
@@ -27,6 +29,8 @@ public sealed class TileDef
 
     /// <summary>No piece may end a move here, and a piece standing here can't be captured by a move.</summary>
     public bool BlocksLanding { get; }
+
+    public int VarCount { get; }
 
     public bool IsDefault => ReferenceEquals(this, Standard);
 

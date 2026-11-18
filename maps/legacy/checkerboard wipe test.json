@@ -1,0 +1,256 @@
+{
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "King",
+      "color": "White",
+      "x": 3,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 0,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 1,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 2,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 3,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 4,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 5,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 6,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 7,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 0,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "White",
+      "x": 1,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 2,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Queen",
+      "color": "White",
+      "x": 4,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 5,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "White",
+      "x": 6,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 7,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 3,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 0,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 1,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 2,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 3,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 4,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 5,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 6,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 7,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "Black",
+      "x": 0,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "Black",
+      "x": 1,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "Black",
+      "x": 2,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Queen",
+      "color": "Black",
+      "x": 4,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "Black",
+      "x": 5,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "Black",
+      "x": 6,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "Black",
+      "x": 7,
+      "y": 7,
+      "decorators": []
+    }
+  ],
+  "tiles": [],
+  "boardEffects": [
+    {
+      "id": "test-alternating-freeze",
+      "name": "Alternating Square Freeze",
+      "description": "Freezes all pieces on alternating squares (white, then black, then white...) for 2 turns, every 3 turns",
+      "priority": 0,
+      "condition": {
+        "type": "TurnInterval",
+        "params": {
+          "interval": 3
+        }
+      },
+      "effect": {
+        "type": "CheckerboardWipe",
+        "params": {
+          "targetColor": "white",
+          "freezeDuration": 2,
+          "sourceId": "checkerboard-freeze",
+          "alternating": true
+        }
+      }
+    }
+  ]
+}
+

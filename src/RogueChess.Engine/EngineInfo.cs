@@ -9,5 +9,5 @@ public static class EngineInfo
     public const string Name = "RogueChess.Engine";
 
     /// <summary>Bumped when the resolution contract (docs/RESOLUTION_RULES.md) changes.</summary>
-    public const int ResolutionContractVersion = 0;
+    public const int ResolutionContractVersion = 1;
 }

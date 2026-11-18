@@ -2,7 +2,7 @@
 
 How a turn is resolved. This document is the contract that content (pieces, abilities, tiles, board effects, relics) is written against. The engine and its tests implement exactly what's written here. If the code and this document disagree, the code has a bug.
 
-Status: **draft for M2**. Contract version 1 (it becomes `EngineInfo.ResolutionContractVersion = 1` when implemented).
+Status: **implemented in M2** (`src/RogueChess.Engine/Resolution/`). Contract version 1 (`EngineInfo.ResolutionContractVersion`). Tests: `tests/RogueChess.Engine.Tests/ResolverTests.cs`.
 
 ---
 
@@ -36,13 +36,14 @@ The TypeScript engine applied one event at a time and let the next listener see 
 
 **Fast clock: waves.** Logical steps inside one resolution. A resolution runs until it settles, never for a fixed count, so a chain reaction always finishes within the turn. Waves have no wall-clock duration: the Godot layer decides how long each wave takes on screen (one wave = one animation beat), and the AI doesn't animate at all.
 
-**Slow clock: turns.** Each turn runs three resolutions in order:
+**Slow clock: turns.** `Game.PlayTurn(state, action)` runs:
 
-1. **Turn start** — the starting input is the fact `TurnStarted(side)`.
-2. **Action** — the starting input is the player's chosen action converted to proposals (§7).
-3. **Turn end** — the starting input is the fact `TurnEnded(side)`.
+1. **Action** — the starting input is the player's chosen action converted to proposals (§7).
+2. **Turn end** — the starting input is the fact `TurnEnded(side)`.
+3. The engine passes the turn to the other side.
+4. **Turn start** — the starting input is the fact `TurnStarted(next side)`.
 
-Then the engine passes the turn to the other side. Timers (`turnsLeft` on Frozen, OnFire, Fire tiles, interval board effects) tick on the slow clock by reacting to `TurnStarted` / `TurnEnded`, the same way a PLC's timer instructions work.
+Turn start runs as the turn passes, so the next side's legal moves already reflect it (a piece frozen at turn start has no moves). `Game.BeginGame(state)` runs the first side's turn start once after setup. Timers (`turnsLeft` on Frozen, OnFire, Fire tiles, interval board effects) tick on the slow clock by reacting to `TurnStarted` / `TurnEnded`, the same way a PLC's timer instructions work.
 
 Each resolution settles completely before the next one starts.
 
@@ -54,7 +55,7 @@ Each resolution settles completely before the next one starts.
 - **Content hooks are pure functions.** They receive a read-only view of the snapshot plus the facts or proposals they're asked about, and return proposals. They can't mutate state; M1's mutation operations are internal to the engine.
 - **No hidden state.** Content classes hold no mutable fields or statics. Per-piece and per-tile values (charges, timers) live in the game state as variables and change only through proposals.
 - **Integers only.** No floating point in the engine.
-- **Randomness** comes from the state's seeded RNG via the hook context. Draws happen in canonical order, so the sequence is fixed.
+- **Randomness** comes from the state's seeded RNG via `TriggerContext.Random`. Draws happen in a fixed hook order and advance the RNG state through a logged operation (the one state change allowed during gather), so the sequence is fixed and undoable.
 
 Enforced by tests: resolving the same turn from two cloned states must give identical traces and identical hashes after every wave.
 
@@ -77,7 +78,7 @@ Modifiers run in two fixed **layers**. Content declares which layer a modifier b
 
 Within a layer:
 - Every modifier sees **the batch as it was when the layer started**. Modifiers in the same layer don't see each other's rewrites.
-- A proposal can be rewritten by **at most one** modifier per layer. If several claim the same proposal, the winner is chosen by canonical order (§8). The losers' rewrites of that proposal are dropped.
+- A proposal can be rewritten by **at most one** modifier per layer. A claim covers one or more proposals, all or nothing. Claims are ranked by canonical order (§8), each measured from the square of its first claimed proposal, and accepted in that order unless they overlap an already-accepted claim. The losers' rewrites are dropped.
 - Proposals that a modifier *adds* (e.g. Scapegoat's self-destroy) go into the batch for the next layer and are never re-modified by the layer that created them.
 
 ### 5.3 Resolve conflicts
@@ -100,7 +101,7 @@ After conflict resolution, no two proposals in the same category touch the same 
 
 ### 5.5 Detect
 
-The engine compares the snapshot with the committed state and emits facts: `PieceDied`, `PieceMoved`, `PieceEntered`, `PieceLeft`, `Collided`, `TileChanged`, `PieceChanged`, `VarChanged`, `Killed`.
+The engine records what the commit did as facts: `Died`, `Killed`, `Moved`, `Spawned` (also used for revives), `Collided`, `PieceChanged`, `TileChanged`, `VarChanged`, `ClockChanged`, plus the phase facts `TurnStarted` / `TurnEnded`. "A piece entered square X" is a `Moved` with `To = X` or a `Spawned` at X (`Fact.Square` gives that square). Field usage per kind is documented on `Fact`.
 
 **Last-known information:** facts about a piece that left the board carry its def, abilities, owner, and square as they were in the snapshot. A dead piece's own death triggers ("when I die…") fire in the next wave using that information. A dead piece can't do anything else.
 
@@ -114,8 +115,8 @@ If any facts were produced, the next wave starts. Otherwise the resolution is ov
 |---|---|
 | `Destroy(piece, source, cause)` | **Set semantics.** Several destroys of the same piece merge into one death. Every distinct source gets a `Killed(source, victim)` fact, so each one gets credit (ChronoCapture, Predator). |
 | `Move(piece, to, cause)` | Resolved **like sliding blocks**, against the squares as they will be after this wave's removals: a move succeeds if its destination is empty, or its occupant is being destroyed or successfully moving away this wave. Two moves to the same square: both blocked. A move into a piece that stays put: blocked. Head-on swaps (A→B's square while B→A's square): blocked. Rotations of 3 or more pieces: allowed. Each blocked move produces `Collided(mover, blocker or other mover)`. A piece that is both destroyed and moved: the destroy wins and the move is dropped. |
-| `Spawn(def, side, square)` | Allowed only if the square is empty after moves. Two spawns on one square: canonical order picks one; the rest are dropped. |
-| `ChangePiece(piece, …)` (def swap, add or remove ability) | Applied only if the piece survives the wave. Adding the same status twice merges, keeping the larger duration. Add and remove of the same status in one wave: remove wins. Two def swaps: canonical order picks one. |
+| `Spawn(def, side, square)` / `Revive(piece, square)` | Allowed only if the square is empty after moves and can be landed on. Two spawns on one square: canonical order picks one; the rest are dropped. A revive brings back the same piece (same id, def and abilities). |
+| `ChangeDef`, `AddAbility`, `RemoveAbility` | Applied only if the piece survives the wave. Adding an ability twice, or re-adding one the piece already has, merges: each variable keeps the larger value (a refreshed status keeps the longer duration). Add and remove of the same ability in one wave: remove wins. Two different def swaps: canonical order picks one. |
 | `ChangeTile(square, def)` | Two different changes to one square: canonical order picks one. |
 | `AddVar(target, name, delta)` | **Deltas sum**, so the result doesn't depend on order. Counters such as charges and timers always use deltas. |
 | `SetVar(target, name, value)` | Two different values for one variable: canonical order picks one. Prefer `AddVar` wherever possible. |
@@ -135,7 +136,13 @@ An action becomes ordinary proposals. There are no special compound events.
 | Cast (e.g. FireMage) | `ChangeTile(target, def)` (+ cost vars) |
 | Use consumable | Whatever the consumable's definition returns |
 
-Ranged attacks and melee captures are **separate actions**, so the player always chooses between them. This fixes the TS Marksman bug.
+Ranged attacks and melee captures are **separate actions**, so the player always chooses between them. This fixes the TS Marksman bug. (M2 implements the move actions: quiet moves, captures, en passant, castling as two simultaneous moves, and promotion. Ranged, cast and consumable actions arrive with their content in M3.)
+
+**Promotion** is a built-in rule trigger: when a pawn-tagged piece's `Moved` fact ends on its far rank, the rules propose `ChangeDef` to the option the player picked (or the first option for a move the player didn't make directly, such as a slide or a push). If the pawn's move is blocked, nothing promotes.
+
+**En passant** bookkeeping happens after the action resolution: the target square is set only if a double push actually landed.
+
+**Legal moves.** Under rules that forbid self-check (standard chess), every pseudo-legal move is resolved through the full resolver and kept only if it is accepted and leaves no royal piece attacked. Under the roguelike rules the legal list is the pseudo-legal list; a move the watchdog rejects is reported by `PlayTurn` (`Accepted = false`, state unchanged).
 
 Worked consequence: if a Guardian tile prevents the capture's `Destroy`, the target stays, the attacker's `Move` hits a piece that stays put, and it's blocked (`Collided`). The attacker stays where it was and the turn proceeds. No special-case code is needed.
 
@@ -195,13 +202,14 @@ The sandbox shows it, and the Godot layer animates from it: one wave per beat, e
 | ChronoCapture, Predator | Trigger | `Killed(source = self)` |
 | Scapegoat, Guardian, Fog | Modifier | Prevent |
 | Piercing, Bouncer | Modifier | Redirect (own capture proposals only) |
-| Fire, Freeze tiles | Trigger | `PieceEntered(this square)`, `TurnEnded` |
-| Slippery tile | Trigger | `PieceEntered` → `Move` one more step in the direction travelled (direction rule to settle in M3) |
-| Wall tile | Trigger | `PieceEntered` → `ChangeTile(standard)` |
-| Tomb tile | Trigger | `PieceEntered` by an ally → `Spawn` the entombed piece |
-| OnFire, Frozen | Trigger | `TurnEnded` → `AddVar(turnsLeft, -1)`, then remove or destroy at 0 |
+| Fire, Freeze tiles | Trigger | `Moved`/`Spawned` onto this square, `TurnEnded` |
+| Slippery tile | Trigger | `Moved` onto this square → `Move` one more step in the direction travelled (direction rule to settle in M3) |
+| Wall tile | Trigger | `Moved` onto this square → `ChangeTile(standard)` |
+| Tomb tile | Trigger | `Moved` onto this square by an ally → `Revive` the entombed piece |
+| OnFire, Frozen | Trigger | `TurnEnded` → `AddVar(turnsLeft, -1)`; `VarChanged` to 0 → remove or destroy |
 | WindGust, CheckerboardWipe, WallsPlacement | Trigger (global) | `TurnEnded` with condition variables in state |
-| Pawn promotion, RoyalPromotion relic | Trigger | `PieceEntered(last rank)` → `ChangePiece(def)` |
+| Pawn promotion | Built-in rule trigger | `Moved` to the far rank → `ChangeDef` |
+| RoyalPromotion relic | Trigger (global) | `Moved` to the far rank → `ChangeDef` |
 
 ---
 

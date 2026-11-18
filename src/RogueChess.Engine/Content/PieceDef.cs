@@ -21,9 +21,10 @@ public enum PieceTags
 
 /// <summary>
 /// Stateless description of a piece type. Shared by every instance; all per-piece state lives on
-/// <see cref="Piece"/> inside the <see cref="GameState"/>.
+/// <see cref="Piece"/> inside the <see cref="GameState"/>. Most pieces are pure data; subclass and
+/// override the <see cref="Behavior"/> hooks for intrinsic behavior.
 /// </summary>
-public sealed class PieceDef
+public class PieceDef : Behavior
 {
     public PieceDef(string id, string name, char symbol, int value, IReadOnlyList<Movement> movements, PieceTags tags = PieceTags.None)
     {

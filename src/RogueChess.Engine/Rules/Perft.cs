@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Notation;
+using RogueChess.Engine.Resolution;
 
 namespace RogueChess.Engine.Rules;
 
@@ -27,7 +28,7 @@ public static class Perft
         {
             string name = MoveText.Format(s, m);
             int mark = s.UndoDepth;
-            MoveApplier.Apply(s, m);
+            Game.PlayTurn(s, m);
             result.Add((name, Recurse(s, depth - 1, buffers)));
             s.UndoTo(mark);
         }
@@ -53,7 +54,7 @@ public static class Perft
         for (int i = 0; i < moves.Count; i++)
         {
             int mark = s.UndoDepth;
-            MoveApplier.Apply(s, moves[i]);
+            Game.PlayTurn(s, moves[i]);
             nodes += Recurse(s, depth - 1, buffers);
             s.UndoTo(mark);
         }

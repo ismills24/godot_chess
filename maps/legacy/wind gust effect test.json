@@ -1,0 +1,108 @@
+{
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "King",
+      "color": "White",
+      "x": 0,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 1,
+      "y": 3,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 2,
+      "y": 5,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "White",
+      "x": 3,
+      "y": 4,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 4,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 5,
+      "y": 2,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 7,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 2,
+      "y": 4,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 3,
+      "y": 3,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "Black",
+      "x": 4,
+      "y": 5,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "Black",
+      "x": 6,
+      "y": 6,
+      "decorators": []
+    }
+  ],
+  "tiles": [],
+  "boardEffects": [
+    {
+      "id": "test-wind-gust",
+      "name": "Periodic Wind Gust",
+      "description": "Pushes back White's furthest pieces in each column every 4 turns; freezes on collision (2 turns)",
+      "priority": 0,
+      "condition": {
+        "type": "TurnInterval",
+        "params": {
+          "interval": 4
+        }
+      },
+      "effect": {
+        "type": "WindGust",
+        "params": {
+          "freezeDuration": 2,
+          "sourceId": "test-wind-gust",
+          "targetPlayer": "White"
+        }
+      }
+    }
+  ]
+}
+

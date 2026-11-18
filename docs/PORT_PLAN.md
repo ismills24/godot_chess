@@ -148,7 +148,7 @@ Hooks available to every def (all optional): `ModifyActions`, `Before`, `After`,
 
 - **xUnit** against the pure engine library (same setup as Pig Project), run with `dotnet test` in GitHub Actions. No Godot is needed in CI. Godot-side checks (the sandbox scene) are done through Ziva playtesting or a headless `--quit-after` run.
 - **Perft tests** for standard pieces on standard positions. Exact node counts prove move generation correct, and they double as benchmarks.
-- **Scenario tests:** a JSON map (compatible with existing `assets/maps/*.json` so all 25 test maps carry over), a list of actions, and assertions on pieces, tiles, vars, and the event trace. Every bug in §1 becomes a scenario that fails on the old semantics.
+- **Scenario tests:** a JSON map (compatible with existing `assets/maps/*.json` so all 23 test maps carry over), a list of actions, and assertions on pieces, tiles, vars, and the event trace. Every bug in §1 becomes a scenario that fails on the old semantics.
 - **Invariant fuzzing:** random self-play checking that make/unmake restores the hash and state byte-for-byte, that replay is deterministic for a given seed, and that there are no budget overflows.
 - **Minimal debug sandbox scene** (2D grid, click to move, event-trace panel, "AI suggest" button). It's thin, but it's how you'll check that new pieces behave predictably.
 
@@ -179,8 +179,8 @@ The engine is a separate project that the Godot assembly references. A test (`En
 |---|---|---|
 | **M0** ✅ | Bootstrap: Godot 4.7 .NET project, engine library, xUnit tests, CI, README | `dotnet test` green; sandbox scene prints from the engine in Godot .NET headless |
 | **M1** ✅ | State + ops + undo + Zobrist; standard pieces via movement primitives; standard rules | Perft matches known counts at depth 4 on the start position plus 2 tactical positions; make/unmake fuzz is clean |
-| **M2** | Resolver (§2.4), `PlayTurn`, trace, JSON map importer, scenario runner, `RESOLUTION_RULES.md` | Scenario harness runs; ordering and loop and rollback rules each have a test |
-| **M3** | Content port, each item with scenarios (see §5) | All 25 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end |
+| **M2** ✅ | Resolver (§2.4), `PlayTurn`, trace, JSON map importer, scenario runner, `RESOLUTION_RULES.md` | Scenario harness runs; ordering and loop and rollback rules each have a test |
+| **M3** | Content port, each item with scenarios (see §5) | All 23 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end |
 | **M4** | AI: search, eval, profiles, threading, debug output | Finds mate-in-1/2, avoids hanging the royal piece, respects Exploding/Guardian in tactics; nodes/sec benchmark recorded vs the TS `EfficientAI` on the same positions |
 | **M5** | Debug sandbox scene | Load map, play both sides or vs AI, view trace and AI top-N |
 
@@ -194,6 +194,17 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 - **Rules** (`Rules/`): `RuleSet.Standard` (check, castling, en passant, under-promotion) and `RuleSet.Rogue` (capture the royal piece, no castling or en passant, auto-queen). Castling works on any board width and is driven by moves-made, not rights bits. `MoveApplier` applies moves directly; M2 wraps it in the event resolver.
 - **Verified:** perft matches published counts for the start position (d4), Kiwipete (d4, 4,085,603), positions 3 (d5), 4 and 4-mirrored (d4), and 5 (d3). Random self-play fuzz (4 positions × 40 games × 120 plies) checks the incremental hash against a full recompute after every move and requires an exact state restore after unwinding. 48 tests take about 3 s in Release.
 - **Speed baseline:** in the Godot editor (Debug build), the start position perft(4) runs at about 450k nodes/s. Legality is checked by make/unmake plus a scan of every attacker, and there is no piece list yet, so M4 has clear room to optimise.
+
+### M2 as built (2026-11-17)
+
+- **Resolver** (`Resolution/Resolver.cs`): wave resolution exactly as specified in [RESOLUTION_RULES.md](RESOLUTION_RULES.md). Each wave is gather → redirect → prevent → resolve conflicts → commit → facts. Moves resolve as sliding blocks. Watchdog: 64 waves, 1024 proposals, and an oscillation check on (state hash + facts). Trace is optional.
+- **Turn API** (`Resolution/Game.cs`): `Game.PlayTurn` (action → turn end → pass → turn start) and `Game.BeginGame`. `MoveApplier` is gone: plain chess, legality checks and perft all run through the resolver, so there is one code path.
+- **Content hooks** (`Content/Behavior.cs`): `PieceDef`, `TileDef`, `AbilityDef` and `GlobalDef` share one `Behavior` base: `Triggers` + `OnFact` for triggers, `Layer` + `Modify` for modifiers. Abilities can also adjust moves with `ModifyMoves`. Hooks see only `IBoardView`, which is read-only.
+- **State additions:** ability instances on pieces, variables on abilities, tiles and globals, global effects, a seeded RNG, and the operations put, add/remove ability and set variable. All are hashed and undoable.
+- **Maps:** `Catalog` + `MapLoader` read the prototype's JSON format. The 23 legacy maps are in `maps/legacy/`. They all parse; the only problems reported are content ids M3 still has to port (the list is asserted in `MapLoaderTests`). Note: the prototype's "standard chess" map has kings on the d-file and queens on the e-file.
+- **Verified:** 79 tests. Every conflict rule; the spec's worked examples (exploding chain rings; Exploding + Scapegoat identical across 21 shuffled hook orders; Guardian); watchdog rollback; last-known-information revive; timers; turn phases; promotion (including blocked promotion); determinism; exact undo; and random games with content keeping the hash correct. Perft is unchanged through the resolver.
+- **Cost:** the resolver roughly doubles plain-chess make/unmake cost (Kiwipete perft(4) about 4 s against 2 s in M1, Release). Sources are collected by scanning the board each wave, and every legality check runs a full action resolution. M4 profiling can add a fast path for states with no hooked content.
+- **Scenario harness:** scenario tests are fluent C# in the test project (`ResolverTests`), using test-only "probe" behaviors. Data-driven scenario files can come with M3 content if they turn out to be useful.
 
 ---
 

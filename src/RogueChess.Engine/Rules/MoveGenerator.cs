@@ -1,11 +1,15 @@
 using System.Collections.Generic;
 using RogueChess.Engine.Core;
+using RogueChess.Engine.Resolution;
 
 namespace RogueChess.Engine.Rules;
 
 public static class MoveGenerator
 {
-    /// <summary>Append every move the side to move's pieces can make, ignoring self-check.</summary>
+    /// <summary>
+    /// Append every move the side to move's pieces can make, ignoring self-check: each def's movement
+    /// primitives, then each ability's <see cref="Content.AbilityDef.ModifyMoves"/>, then castling.
+    /// </summary>
     public static void GeneratePseudoLegal(GameState s, List<Move> moves)
     {
         var side = s.SideToMove;
@@ -13,14 +17,22 @@ public static class MoveGenerator
         {
             var p = s.PieceAt(sq);
             if (p == null || p.Side != side) continue;
+            int first = moves.Count;
             foreach (var movement in p.Def.Movements)
                 movement.Generate(s, p, moves);
+            foreach (var ability in p.Abilities)
+                ability.Def.ModifyMoves(s, p, ability, moves, first);
             if (s.Rules.Castling && p.Def.IsRoyal && p.MovesMade == 0)
                 GenerateCastling(s, p, moves);
         }
     }
 
-    /// <summary>Append the legal moves for the side to move under <see cref="RuleSet.ForbidSelfCheck"/>.</summary>
+    /// <summary>
+    /// Append the legal moves for the side to move. Under <see cref="RuleSet.ForbidSelfCheck"/> each move is
+    /// resolved through the full resolver (so abilities and tiles count) and kept only if it is accepted and
+    /// leaves no royal piece attacked. Without that rule this is the pseudo-legal list: a move rejected by the
+    /// resolver's watchdog is reported by <see cref="Game.PlayTurn"/> instead.
+    /// </summary>
     public static void GenerateLegal(GameState s, List<Move> moves)
     {
         int start = moves.Count;
@@ -33,16 +45,15 @@ public static class MoveGenerator
         {
             var m = moves[i];
             int mark = s.UndoDepth;
-            MoveApplier.Apply(s, m);
-            bool illegal = IsInCheck(s, mover);
+            bool ok = Game.ResolveAction(s, m, default, null, out _) && !IsInCheck(s, mover);
             s.UndoTo(mark);
-            if (!illegal) moves[write++] = m;
+            if (ok) moves[write++] = m;
         }
         moves.RemoveRange(write, moves.Count - write);
     }
 
     /// <summary>Whether any piece of <paramref name="by"/> could capture on <paramref name="target"/>.</summary>
-    public static bool IsAttacked(GameState s, int target, Side by)
+    public static bool IsAttacked(IBoardView s, int target, Side by)
     {
         for (int sq = 0; sq < s.Area; sq++)
         {
@@ -55,7 +66,7 @@ public static class MoveGenerator
     }
 
     /// <summary>Whether any royal piece of <paramref name="side"/> is attacked.</summary>
-    public static bool IsInCheck(GameState s, Side side)
+    public static bool IsInCheck(IBoardView s, Side side)
     {
         for (int sq = 0; sq < s.Area; sq++)
         {
