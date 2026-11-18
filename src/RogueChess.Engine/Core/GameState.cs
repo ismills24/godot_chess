@@ -107,6 +107,20 @@ public sealed class GameState : IBoardView
         return inst;
     }
 
+    /// <summary>Take a piece off the board during setup (e.g. the sandbox editor). Undoable.</summary>
+    public void RemoveFromBoard(Piece piece)
+    {
+        if (!piece.IsOnBoard) throw new InvalidOperationException($"{piece} is not on the board.");
+        RemovePiece(piece);
+    }
+
+    /// <summary>Take an ability away from a piece during setup. Undoable.</summary>
+    public void RevokeAbility(Piece piece, AbilityDef def)
+    {
+        int index = piece.AbilityIndex(def);
+        if (index >= 0) RemoveAbility(piece, index);
+    }
+
     public void SetTile(int sq, TileDef def, params int[] vars)
         => ReplaceTile(sq, def.IsDefault ? Tile.Standard : new Tile(def, vars));
 

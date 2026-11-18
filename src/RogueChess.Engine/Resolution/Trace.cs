@@ -49,16 +49,46 @@ public sealed class WaveTrace
     public List<Fact> Facts { get; } = new();
     public ulong HashAfter { get; internal set; }
 
+    /// <summary>
+    /// The wave as text, rendered while it resolved, so pieces are named as they were at that moment
+    /// (a pawn that later evolves still reads as a pawn here).
+    /// </summary>
+    public List<string> Lines { get; } = new();
+
+    internal void RecordGathered(IBoardView board)
+    {
+        foreach (var p in Gathered) Lines.Add("  propose " + TraceText.Describe(p, board));
+    }
+
+    internal void RecordClaims(IEnumerable<Claim> claims, IBoardView board)
+    {
+        foreach (var c in claims)
+        {
+            Claims.Add(c);
+            Lines.Add($"  {(c.Accepted ? "claim" : "lost claim")} [{c.Layer}] {c.Source} on #{string.Join(",#", c.Indices)} -> "
+                + (c.Replacements.Length == 0 ? "cancel" : string.Join("; ", c.Replacements.Select(r => TraceText.Describe(r, board)))));
+        }
+    }
+
+    internal void RecordNote(string note)
+    {
+        Notes.Add(note);
+        Lines.Add("  note " + note);
+    }
+
+    internal void RecordFacts(IEnumerable<Fact> facts, IBoardView board)
+    {
+        foreach (var f in facts)
+        {
+            Facts.Add(f);
+            Lines.Add("  fact " + TraceText.Describe(f, board));
+        }
+    }
+
     internal void AppendTo(StringBuilder sb, IBoardView board)
     {
         sb.Append($"-- wave {Index}\n");
-        foreach (var p in Gathered) sb.Append("  propose ").Append(TraceText.Describe(p, board)).Append('\n');
-        foreach (var c in Claims)
-            sb.Append($"  {(c.Accepted ? "claim" : "lost claim")} [{c.Layer}] {c.Source} on #{string.Join(",#", c.Indices)} -> ")
-              .Append(c.Replacements.Length == 0 ? "cancel" : string.Join("; ", c.Replacements.Select(r => TraceText.Describe(r, board))))
-              .Append('\n');
-        foreach (var n in Notes) sb.Append("  note ").Append(n).Append('\n');
-        foreach (var f in Facts) sb.Append("  fact ").Append(TraceText.Describe(f, board)).Append('\n');
+        foreach (var line in Lines) sb.Append(line).Append('\n');
     }
 }
 

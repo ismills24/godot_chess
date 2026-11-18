@@ -11,7 +11,7 @@ namespace RogueChess.Engine.Tests;
 
 public class MapLoaderTests
 {
-    private static string LegacyMapsDir
+    internal static string LegacyMapsDir
     {
         get
         {
@@ -50,7 +50,7 @@ public class MapLoaderTests
         {
             try
             {
-                MapLoader.Load(File.ReadAllText(file), Catalog.CreateStandard());
+                MapLoader.Load(File.ReadAllText(file), ContentLibrary.CreateCatalog());
                 loaded++;
             }
             catch (MapLoadException e)
@@ -60,14 +60,14 @@ public class MapLoaderTests
             }
         }
 
-        Assert.True(loaded >= 1);
+        Assert.Equal(8, loaded);
         Assert.Equal(new SortedSet<string>
         {
             // abilities
-            "Bouncer", "Cannibal", "Exploding", "FireMage", "FreezeMage", "Frozen", "Marksman", "OnFire",
-            "Phantom", "Piercing", "Predator", "Revenant", "Scapegoat", "WallPlacement",
+            "Bouncer", "Cannibal", "FireMage", "FreezeMage", "Frozen", "Marksman", "OnFire",
+            "Piercing", "Revenant", "WallPlacement",
             // tiles
-            "FireTile", "FogTile", "FreezeTile", "GuardianTile", "SlipperyTile", "WallTile",
+            "FireTile", "FreezeTile", "SlipperyTile",
             // board effects
             "CheckerboardWipe", "WallsPlacement", "WindGust",
         }, unknown);

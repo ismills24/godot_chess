@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 
 namespace RogueChess.Engine.Content;
@@ -37,6 +38,11 @@ public sealed class Catalog
         _boardEffects[effectType] = factory;
         return this;
     }
+
+    /// <summary>Every registered def once (aliases collapsed), in registration order. For palettes and pickers.</summary>
+    public IReadOnlyList<PieceDef> Pieces => _pieces.Values.Distinct().ToList();
+    public IReadOnlyList<TileDef> Tiles => _tiles.Values.Distinct().ToList();
+    public IReadOnlyList<AbilityDef> Abilities => _abilities.Values.Distinct().ToList();
 
     public PieceDef? FindPiece(string id) => _pieces.GetValueOrDefault(id);
     public TileDef? FindTile(string id) => _tiles.GetValueOrDefault(id);

@@ -1,0 +1,282 @@
+{
+  "name": "Mixed armies",
+  "description": "A full game with everything ported so far: exploding e-pawns, Scapegoat knights, Phantom rooks, Predator d-pawns, walls, fog and guardian tiles in the centre.",
+  "rules": "rogue",
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "Rook",
+      "color": "Black",
+      "x": 0,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "Black",
+      "x": 1,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "Black",
+      "x": 2,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Queen",
+      "color": "Black",
+      "x": 3,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 4,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "Black",
+      "x": 5,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "Black",
+      "x": 6,
+      "y": 7,
+      "decorators": [
+        "Scapegoat"
+      ]
+    },
+    {
+      "type": "Rook",
+      "color": "Black",
+      "x": 7,
+      "y": 7,
+      "decorators": [
+        "Phantom"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 0,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 1,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 2,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 3,
+      "y": 6,
+      "decorators": [
+        "Predator"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 4,
+      "y": 6,
+      "decorators": [
+        "Exploding"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 5,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 6,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 7,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 0,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 1,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 2,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 3,
+      "y": 1,
+      "decorators": [
+        "Predator"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 4,
+      "y": 1,
+      "decorators": [
+        "Exploding"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 5,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 6,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 7,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 0,
+      "y": 0,
+      "decorators": [
+        "Phantom"
+      ]
+    },
+    {
+      "type": "Knight",
+      "color": "White",
+      "x": 1,
+      "y": 0,
+      "decorators": [
+        "Scapegoat"
+      ]
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 2,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Queen",
+      "color": "White",
+      "x": 3,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "White",
+      "x": 4,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 5,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "White",
+      "x": 6,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 7,
+      "y": 0,
+      "decorators": []
+    }
+  ],
+  "tiles": [
+    {
+      "type": "WallTile",
+      "x": 3,
+      "y": 3
+    },
+    {
+      "type": "WallTile",
+      "x": 4,
+      "y": 4
+    },
+    {
+      "type": "FogTile",
+      "x": 2,
+      "y": 4
+    },
+    {
+      "type": "FogTile",
+      "x": 5,
+      "y": 3
+    },
+    {
+      "type": "GuardianTile",
+      "x": 3,
+      "y": 4
+    },
+    {
+      "type": "GuardianTile",
+      "x": 4,
+      "y": 3
+    }
+  ]
+}

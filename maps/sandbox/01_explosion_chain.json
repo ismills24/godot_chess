@@ -1,0 +1,87 @@
+{
+  "name": "Explosion chain vs Scapegoat",
+  "description": "White to move. Play Rd1xd5: wave 0 the bomb on d5 dies; wave 1 its blast kills the rook and the bomb on c6, and would kill the bishop on e6 but the Scapegoat knight on f7 dies instead; wave 2 the c6 bomb kills b7.",
+  "rules": "rogue",
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 7,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 1,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Knight",
+      "color": "White",
+      "x": 5,
+      "y": 6,
+      "decorators": [
+        "Scapegoat"
+      ]
+    },
+    {
+      "type": "Knight",
+      "color": "Black",
+      "x": 2,
+      "y": 5,
+      "decorators": [
+        "Exploding"
+      ]
+    },
+    {
+      "type": "Bishop",
+      "color": "White",
+      "x": 4,
+      "y": 5,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 3,
+      "y": 4,
+      "decorators": [
+        "Exploding"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 0,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 1,
+      "y": 1,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "White",
+      "x": 0,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 3,
+      "y": 0,
+      "decorators": []
+    }
+  ],
+  "tiles": []
+}

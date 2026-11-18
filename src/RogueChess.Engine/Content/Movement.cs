@@ -16,6 +16,13 @@ public abstract class Movement
     public abstract bool Attacks(IBoardView state, Piece piece, int target);
 
     protected static bool CanLandOn(IBoardView state, int sq) => !state.TileAt(sq).Def.BlocksLanding;
+
+    /// <summary>Whether a piece standing on <paramref name="sq"/> can be captured by a move.</summary>
+    protected static bool CanCaptureOn(IBoardView state, int sq)
+    {
+        var def = state.TileAt(sq).Def;
+        return !def.BlocksLanding && !def.BlocksCapture;
+    }
 }
 
 /// <summary>Moves any number of squares (up to <see cref="MaxRange"/>, 0 = unlimited) along each direction.</summary>
@@ -52,7 +59,7 @@ public sealed class Slide : Movement
                 var occupant = s.PieceAt(sq);
                 if (occupant != null)
                 {
-                    if (occupant.Side != p.Side && !tile.BlocksLanding)
+                    if (occupant.Side != p.Side && CanCaptureOn(s, sq))
                         moves.Add(new Move(p.Square, sq, MoveFlags.Capture));
                     break;
                 }
@@ -64,7 +71,7 @@ public sealed class Slide : Movement
 
     public override bool Attacks(IBoardView s, Piece p, int target)
     {
-        if (!CanLandOn(s, target)) return false;
+        if (!CanCaptureOn(s, target)) return false;
         int px = s.FileOf(p.Square), py = s.RankOf(p.Square);
         int dx = s.FileOf(target) - px, dy = s.RankOf(target) - py;
         foreach (var (ddx, ddy) in _dirs)
@@ -108,13 +115,13 @@ public sealed class Leap : Movement
             if (!CanLandOn(s, sq)) continue;
             var occupant = s.PieceAt(sq);
             if (occupant == null) moves.Add(new Move(p.Square, sq));
-            else if (occupant.Side != p.Side) moves.Add(new Move(p.Square, sq, MoveFlags.Capture));
+            else if (occupant.Side != p.Side && CanCaptureOn(s, sq)) moves.Add(new Move(p.Square, sq, MoveFlags.Capture));
         }
     }
 
     public override bool Attacks(IBoardView s, Piece p, int target)
     {
-        if (!CanLandOn(s, target)) return false;
+        if (!CanCaptureOn(s, target)) return false;
         int dx = s.FileOf(target) - s.FileOf(p.Square), dy = s.RankOf(target) - s.RankOf(p.Square);
         foreach (var (ox, oy) in _offsets)
             if (ox == dx && oy == dy) return true;
@@ -162,13 +169,13 @@ public sealed class PawnMovement : Movement
             var occupant = s.PieceAt(sq);
             if (occupant != null)
             {
-                if (occupant.Side != p.Side) AddPawnMove(s, p, sq, MoveFlags.Capture, moves);
+                if (occupant.Side != p.Side && CanCaptureOn(s, sq)) AddPawnMove(s, p, sq, MoveFlags.Capture, moves);
             }
             else if (s.Rules.EnPassant && sq == s.EnPassantSquare)
             {
                 int victimSq = s.Sq(x, py);
                 var victim = s.PieceAt(victimSq);
-                if (victim != null && victim.Side != p.Side && victim.Def.IsPawn)
+                if (victim != null && victim.Side != p.Side && victim.Def.IsPawn && CanCaptureOn(s, victimSq))
                     moves.Add(new Move(p.Square, sq, MoveFlags.EnPassant, Aux: victimSq));
             }
         }
@@ -176,7 +183,7 @@ public sealed class PawnMovement : Movement
 
     public override bool Attacks(IBoardView s, Piece p, int target)
     {
-        if (!CanLandOn(s, target)) return false;
+        if (!CanCaptureOn(s, target)) return false;
         int dx = s.FileOf(target) - s.FileOf(p.Square), dy = s.RankOf(target) - s.RankOf(p.Square);
         return dy == p.Side.Forward() && (dx == 1 || dx == -1);
     }

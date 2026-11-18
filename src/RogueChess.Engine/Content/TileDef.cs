@@ -11,12 +11,14 @@ public class TileDef : Behavior
 {
     public static readonly TileDef Standard = new("standard", "Standard");
 
-    public TileDef(string id, string name, bool blocksPassage = false, bool blocksLanding = false, int varCount = 0)
+    public TileDef(string id, string name, bool blocksPassage = false, bool blocksLanding = false, int varCount = 0,
+        bool blocksCapture = false)
     {
         Id = id;
         Name = name;
         BlocksPassage = blocksPassage;
         BlocksLanding = blocksLanding;
+        BlocksCapture = blocksCapture;
         VarCount = varCount;
         HashId = Zobrist.StableHash(id);
     }
@@ -29,6 +31,12 @@ public class TileDef : Behavior
 
     /// <summary>No piece may end a move here, and a piece standing here can't be captured by a move.</summary>
     public bool BlocksLanding { get; }
+
+    /// <summary>
+    /// A piece standing here can't be captured by a move (Fog). The square can still be entered when empty,
+    /// and non-move destruction (explosions) still works.
+    /// </summary>
+    public bool BlocksCapture { get; }
 
     public int VarCount { get; }
 

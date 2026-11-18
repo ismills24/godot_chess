@@ -1,0 +1,71 @@
+{
+  "name": "Predator hunt",
+  "description": "White's Predator pawn evolves with every kill: dxe5 (knight), Nxf7 (bishop), Bxb3 (rook), Rxb8 (queen); Black moves in between. Taking the exploding pawn on c5 instead ends the hunt with a bang.",
+  "rules": "rogue",
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "Queen",
+      "color": "Black",
+      "x": 1,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 7,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 5,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 2,
+      "y": 4,
+      "decorators": [
+        "Exploding"
+      ]
+    },
+    {
+      "type": "Pawn",
+      "color": "Black",
+      "x": 4,
+      "y": 4,
+      "decorators": []
+    },
+    {
+      "type": "Pawn",
+      "color": "White",
+      "x": 3,
+      "y": 3,
+      "decorators": [
+        "Predator"
+      ]
+    },
+    {
+      "type": "Rook",
+      "color": "Black",
+      "x": 1,
+      "y": 2,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "White",
+      "x": 0,
+      "y": 0,
+      "decorators": []
+    }
+  ],
+  "tiles": []
+}

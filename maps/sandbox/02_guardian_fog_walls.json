@@ -1,0 +1,79 @@
+{
+  "name": "Guardian, fog and walls",
+  "description": "Black to move. Ra4xd4 is stopped by the Guardian tile under the queen (the rook is blocked and stays on a4, the tile is used up), so a second capture (Bg7xd4) goes through. The black king stands in fog: nothing can capture it. Walls stop sliding pieces but break when a piece lands on them.",
+  "rules": "rogue",
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "Black",
+  "pieces": [
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 4,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "Bishop",
+      "color": "Black",
+      "x": 6,
+      "y": 6,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "Black",
+      "x": 0,
+      "y": 3,
+      "decorators": []
+    },
+    {
+      "type": "Queen",
+      "color": "White",
+      "x": 3,
+      "y": 3,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "White",
+      "x": 4,
+      "y": 0,
+      "decorators": []
+    },
+    {
+      "type": "Rook",
+      "color": "White",
+      "x": 7,
+      "y": 0,
+      "decorators": []
+    }
+  ],
+  "tiles": [
+    {
+      "type": "GuardianTile",
+      "x": 3,
+      "y": 3
+    },
+    {
+      "type": "FogTile",
+      "x": 4,
+      "y": 7
+    },
+    {
+      "type": "WallTile",
+      "x": 7,
+      "y": 4
+    },
+    {
+      "type": "WallTile",
+      "x": 2,
+      "y": 5
+    },
+    {
+      "type": "WallTile",
+      "x": 4,
+      "y": 2
+    }
+  ]
+}

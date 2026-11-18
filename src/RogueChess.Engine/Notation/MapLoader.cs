@@ -26,7 +26,9 @@ public sealed class MapLoadException : Exception
 
 /// <summary>
 /// Loads the prototype's map format (assets/maps/*.json):
-/// <c>{ width, height, startingPlayer, pieces: [{type, color, x, y, decorators[]}], tiles: [{type, x, y}], boardEffects: [...] }</c>.
+/// <c>{ width, height, startingPlayer, pieces: [{type, color, x, y, decorators[]}], tiles: [{type, x, y}], boardEffects: [...] }</c>,
+/// plus optional extensions: <c>"rules"</c> ("rogue" or "standard"), and <c>"name"</c> / <c>"description"</c>, which are ignored here
+/// and used by the sandbox.
 /// </summary>
 public static class MapLoader
 {
@@ -39,7 +41,7 @@ public static class MapLoader
 
         int width = root.GetProperty("width").GetInt32();
         int height = root.GetProperty("height").GetInt32();
-        var s = new GameState(width, height, rules ?? RuleSet.Rogue);
+        var s = new GameState(width, height, rules ?? ParseRules(root, problems));
 
         if (root.TryGetProperty("tiles", out var tiles))
         {
@@ -105,6 +107,20 @@ public static class MapLoader
         {
             problems.Add($"unknown {kind} '{id}'");
             unknown.Add(id);
+        }
+    }
+
+    /// <summary>Optional <c>"rules": "rogue" | "standard"</c>; the prototype's maps have none and use rogue rules.</summary>
+    private static RuleSet ParseRules(JsonElement root, List<string> problems)
+    {
+        if (!root.TryGetProperty("rules", out var r)) return RuleSet.Rogue;
+        switch (r.GetString())
+        {
+            case "rogue": return RuleSet.Rogue;
+            case "standard": return RuleSet.Standard;
+            default:
+                problems.Add($"unknown rules '{r.GetString()}'");
+                return RuleSet.Rogue;
         }
     }
 

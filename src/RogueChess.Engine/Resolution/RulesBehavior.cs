@@ -27,7 +27,7 @@ internal sealed class RulesBehavior : Behavior
         if (board.RankOf(fact.To) != lastRank) return;
 
         int choice = ctx.Action.PieceId == p.Id && ctx.Action.PromotionIndex >= 0 ? ctx.Action.PromotionIndex : 0;
-        ctx.Propose(Proposal.ChangeDef(p, options[choice], "promotion"));
+        ctx.Propose(Proposal.ChangeDef(p, options[choice], Causes.Promotion));
     }
 
     public override string ToString() => "rules";

@@ -100,19 +100,19 @@ public static class Game
 
         if (m.Is(MoveFlags.EnPassant))
         {
-            if (s.PieceAt(m.Aux) is { } victim) into.Add(Proposal.Destroy(victim, "en-passant") with { Source = source });
+            if (s.PieceAt(m.Aux) is { } victim) into.Add(Proposal.Destroy(victim, Causes.EnPassant) with { Source = source });
         }
         else if (m.Is(MoveFlags.Capture))
         {
-            if (s.PieceAt(m.To) is { } target) into.Add(Proposal.Destroy(target, "capture") with { Source = source });
+            if (s.PieceAt(m.To) is { } target) into.Add(Proposal.Destroy(target, Causes.Capture) with { Source = source });
         }
 
-        into.Add(Proposal.Move(mover, m.To, "action") with { Source = source });
+        into.Add(Proposal.Move(mover, m.To, Causes.Action) with { Source = source });
 
         if (m.Is(MoveFlags.Castle) && s.PieceAt(m.Aux) is { } partner)
         {
             int dir = Math.Sign(m.To - m.From);
-            into.Add(Proposal.Move(partner, m.From + dir, "castle") with { Source = source });
+            into.Add(Proposal.Move(partner, m.From + dir, Causes.Castle) with { Source = source });
         }
     }
 

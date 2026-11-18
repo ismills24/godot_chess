@@ -1,0 +1,25 @@
+{
+  "name": "Empty board",
+  "description": "Just two kings. Use Place, Tile and Ability modes to build your own test position, then play it.",
+  "rules": "rogue",
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    {
+      "type": "King",
+      "color": "Black",
+      "x": 4,
+      "y": 7,
+      "decorators": []
+    },
+    {
+      "type": "King",
+      "color": "White",
+      "x": 4,
+      "y": 0,
+      "decorators": []
+    }
+  ],
+  "tiles": []
+}

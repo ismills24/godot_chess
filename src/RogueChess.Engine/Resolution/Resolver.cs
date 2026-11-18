@@ -102,8 +102,9 @@ internal sealed class Resolver
                 if (trace != null)
                 {
                     wt = new WaveTrace(wave);
-                    if (wave == 0 && startFact is { } start) wt.Notes.Add("start: " + TraceText.Describe(start, s));
+                    if (wave == 0 && startFact is { } start) wt.RecordNote("start: " + TraceText.Describe(start, s));
                     wt.Gathered.AddRange(_batch);
+                    wt.RecordGathered(s);
                     trace.Waves.Add(wt);
                 }
 
@@ -116,7 +117,7 @@ internal sealed class Resolver
                 Commit(s, wt);
                 if (wt != null)
                 {
-                    wt.Facts.AddRange(_newFacts);
+                    wt.RecordFacts(_newFacts, s);
                     wt.HashAfter = s.Hash;
                 }
 
@@ -259,7 +260,7 @@ internal sealed class Resolver
 
         _batch.Clear();
         _batch.AddRange(_scratch);
-        wt?.Claims.AddRange(ranked.Select(r => r.Claim));
+        wt?.RecordClaims(ranked.Select(r => r.Claim), s);
     }
 
     // ---------------------------------------------------------------- resolve conflicts + commit
@@ -301,7 +302,7 @@ internal sealed class Resolver
     private bool Beats(GameState s, int candidate, int incumbent, int anchor)
         => CanonicalOrder.Compare(_batch[candidate].Source, _batch[incumbent].Source, anchor, s) < 0;
 
-    private void Note(WaveTrace? wt, string text) => wt?.Notes.Add(text);
+    private static void Note(WaveTrace? wt, string text) => wt?.RecordNote(text);
 
     private void Commit(GameState s, WaveTrace? wt)
     {
@@ -333,7 +334,8 @@ internal sealed class Resolver
                     if (piece == null || !piece.IsOnBoard) { Note(wt, $"dropped destroy of absent #{p.PieceId}"); break; }
                     if (!_destroyWinner.TryGetValue(piece.Id, out int j)) _destroyWinner[piece.Id] = i;
                     else if (Beats(s, i, j, piece.Square)) _destroyWinner[piece.Id] = i;
-                    bool credited = false;
+                    // No kill credit for a piece's own death (e.g. a Scapegoat sacrificing itself).
+                    bool credited = p.Source.Piece == piece;
                     foreach (var k in _kills)
                         if (k.VictimId == piece.Id && k.Source.SameAs(p.Source)) { credited = true; break; }
                     if (!credited) _kills.Add((piece.Id, piece.Square, p.Source, p.Cause));
