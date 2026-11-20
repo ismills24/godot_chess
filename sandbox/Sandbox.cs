@@ -144,7 +144,8 @@ public partial class Sandbox : Control
 
         ClearSelection();
         var piece = _state.PieceAt(sq);
-        if (piece != null && piece.Side == _state.SideToMove)
+        bool over = _state.Rules.Evaluate(_state) != GameOutcome.Ongoing;
+        if (piece != null && piece.Side == _state.SideToMove && !over)
         {
             _board.Selected = sq;
             _legal.Clear();
@@ -251,6 +252,7 @@ public partial class Sandbox : Control
 
         _hint.Text = inspected != null ? Describe(inspected) : _tool switch
         {
+            Tool.Play when outcome != GameOutcome.Ongoing => "Game over. Undo, Restart, or edit the position to keep playing.",
             Tool.Play => "Click a piece of the side to move, then a highlighted square.",
             Tool.Place => $"Click a square to place a {_placeSide} {_placeDef.Name} (replaces what's there).",
             Tool.Tile => $"Click a square to make it {_tileDef.Name}.",

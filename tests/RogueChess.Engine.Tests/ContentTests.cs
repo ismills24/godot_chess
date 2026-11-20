@@ -82,6 +82,57 @@ public class ContentTests
         Assert.NotNull(At(s, "d5"));                                     // two squares away
     }
 
+    // ------------------------------------------------------------------ Win rule: capture the king (RESOLUTION_RULES §7.1)
+
+    [Fact]
+    public void A_king_killed_by_an_explosion_loses_the_game()
+    {
+        var s = Rogue("8/8/8/4k3/3p4/8/8/3R3K w - - 0 1");
+        Grant(s, ExplodingAbility.Instance, "d4");
+
+        Play(s, "d1d4");
+
+        Assert.Null(At(s, "e5"));
+        Assert.Equal(GameOutcome.WhiteWins, s.Rules.Evaluate(s));
+    }
+
+    [Fact]
+    public void A_king_that_captures_an_exploding_piece_loses_its_own_side_the_game()
+    {
+        var s = Rogue("7k/8/8/8/3p4/4K3/8/8 w - - 0 1");
+        Grant(s, ExplodingAbility.Instance, "d4");
+
+        Play(s, "e3d4");
+
+        Assert.Equal(GameOutcome.BlackWins, s.Rules.Evaluate(s));
+    }
+
+    [Fact]
+    public void Both_kings_dying_in_the_same_turn_is_a_draw()
+    {
+        var s = Rogue("8/8/8/4k3/3p4/2K5/8/3R4 w - - 0 1");
+        Grant(s, ExplodingAbility.Instance, "d4");
+
+        Play(s, "d1d4");
+
+        Assert.Null(At(s, "e5"));
+        Assert.Null(At(s, "c3"));
+        Assert.Equal(GameOutcome.Draw, s.Rules.Evaluate(s));
+    }
+
+    [Fact]
+    public void A_scapegoat_beside_the_king_saves_it_from_capture_and_the_game_goes_on()
+    {
+        var s = Rogue("k7/1n6/8/8/8/8/8/R6K w - - 0 1");
+        Grant(s, ScapegoatAbility.Instance, "b7");
+
+        Play(s, "a1a8");
+
+        Assert.NotNull(At(s, "a8"));
+        Assert.Null(At(s, "b7"));
+        Assert.Equal(GameOutcome.Ongoing, s.Rules.Evaluate(s));
+    }
+
     // ------------------------------------------------------------------ Scapegoat
 
     [Fact]

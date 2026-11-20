@@ -244,7 +244,7 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 
 1. ~~**Language:** C# or GDScript?~~ **Decided: C#.**
 2. ~~**Reaction order:** depth-first or breadth-first?~~ **Decided: neither. Simultaneous wave resolution (PLC-style scan cycle). See [RESOLUTION_RULES.md](RESOLUTION_RULES.md).**
-3. **Default win rule:** capture the royal piece (as the roguelike does today), or real check/checkmate? Should "can't leave the king capturable" be enforced?
+3. ~~**Default win rule:** capture the royal piece or checkmate?~~ **Decided: capture the king** (explosions make checkmate meaningless). No check rule; see [RESOLUTION_RULES.md §7.1](RESOLUTION_RULES.md).
 4. **Revenant:** revive once or forever?
 5. **Bouncer:** push the target one square or the attacker's full distance?
 6. **Pawn diagonal wall capture** (pawns can "capture" walls diagonally today): keep it?

@@ -146,6 +146,21 @@ Ranged attacks and melee captures are **separate actions**, so the player always
 
 Worked consequence: if a Guardian tile prevents the capture's `Destroy`, the target stays, the attacker's `Move` hits a piece that stays put, and it's blocked (`Collided`). The attacker stays where it was and the turn proceeds. No special-case code is needed.
 
+
+### 7.1 How games end
+
+The game rule is **capture the enemy king** (`RuleSet.Rogue`, the default for every map). Checkmate is the wrong test here: explosions, scapegoats and other content can kill or save a king without anything "attacking" it.
+
+- The result is judged **after the whole turn** (action, turn-end and the next side's turn-start), never in the middle of a resolution. A king that dies and comes back within the same turn has not lost.
+- **Any cause counts.** It doesn't matter whether the king was captured by a move, caught in an explosion or killed by a tile. Only whether it is still on the board matters.
+- A side with **no royal pieces left loses**. That includes a side that kills its own king, for example a king capturing an Exploding piece.
+- **Both sides lose their last royal in the same turn: draw.**
+- **The side to move has no moves at all: draw.** You may move into danger, so this only happens when every piece is boxed in.
+- A side may have several royal pieces; it loses when the last one goes.
+- **There is no check.** Moving into an attacked square, or leaving your king attacked, is legal; the opponent may then take it.
+
+`RuleSet.Standard` (checkmate and stalemate) remains for perft and rules tests only.
+
 ---
 
 ## 8. Canonical order
