@@ -35,3 +35,38 @@ Compatibility on an RTX 3080 Ti. Pixel/palette toggles and turntable inputs were
 delivered successfully. After caching geometry, the 2.5-second raw-splat turntable
 check averaged 120 FPS with 115 FPS 1% low (debug build, vsync on). This short
 single-pawn measurement is not a full-board performance guarantee.
+
+## Workshop head-swap prototype
+
+Open `WorkshopPreview.tscn` and press **F6**. The 13.5-second swap starts
+automatically; use Pause/Play, Replay head swap, the timeline slider, or
+Inspect exposed thread. Drag to orbit and scroll to zoom. Pixel rendering and
+the workshop palette can be toggled separately. The original pawn scene and
+the project's main sandbox remain unchanged.
+
+The base and shaft retain their SDF-derived splats. Ivory and solid steel heads are
+separate rigid splat modules with open undersides and smooth hollow sleeves.
+The neck is a wooden dowel with shallow recessed threading, rather than a raised
+spiral wrapped around a shaft: three revolutions at 0.10 units per
+revolution. During engagement, vertical travel is coupled to angular travel;
+parts only translate sideways once they have cleared the neck. The old head
+rests on the left pad after removal. The replacement is a plain, slightly larger
+steel sphere with a cool specular highlight. Its sleeve is smooth steel; the
+original head has a smooth ivory sleeve. There are no bomb details. The idea of
+requiring a larger capturing piece is not implemented as a gameplay rule.
+
+`workshop_parts.gd` creates crisp conventional geometry for the mechanical
+interfaces and bench. `splat_part.gd` caches each head's local surface samples
+and re-sorts its triangles as the camera or head rotates. The moving splats use
+world-space directional shading so highlights do not rotate with the heads;
+the steel finish adds a view-dependent highlight. `wooden_dowel.gdshader` cuts
+the shallow helical groove inward and adds subtle longitudinal wood grain.
+`workshop_preview.gd` computes poses directly from timeline time, making replay
+and backward scrubbing deterministic without accumulating rotations.
+
+This is an assembly animation study: parts are moved by a presentation timeline,
+without hands/tools, physics, or gameplay ability changes. The threads are visual
+geometry, not a manufacturing specification or simulated threaded joint. The
+previous bomb-head version ran without errors at 120 FPS average / 116 FPS 1% low
+in a 16-second GL Compatibility debug run on the same RTX 3080 Ti; that measurement
+does not validate the revised metal-head rendering.

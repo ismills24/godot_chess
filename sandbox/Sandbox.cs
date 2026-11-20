@@ -10,6 +10,7 @@ using RogueChess.Engine;
 using RogueChess.Engine.AI;
 using RogueChess.Engine.Content;
 using RogueChess.Engine.Core;
+using RogueChess.Engine.Encounters;
 using RogueChess.Engine.Notation;
 using RogueChess.Engine.Resolution;
 using RogueChess.Engine.Rules;
@@ -60,18 +61,24 @@ public partial class Sandbox : Control
     private bool _forceAiMove;
     private double _sinceLastMove;
 
+    // Roguelike encounters (res://encounters/prototype.json)
+    private EncounterSet? _encounters;
+    private (EncounterSpec Spec, ulong Seed)? _encounter;
+    private ulong _encounterSeed = 1;
+
     private sealed record Scenario(string Name, string Description, string Path);
 
     public override void _Ready()
     {
         LoadAiProfiles();
+        LoadEncounters();
         DiscoverScenarios();
         BuildUi();
         ApplyCommandLine();
     }
 
     /// <summary>
-    /// Optional user args (after "--"): --scenario=&lt;file name or title&gt; --white=&lt;profile|human&gt; --black=&lt;profile|human&gt;.
+    /// Optional user args (after "--"): --encounter=&lt;id or name&gt; --seed=&lt;n&gt; --scenario=&lt;file name or title&gt; --white=&lt;profile|human&gt; --black=&lt;profile|human&gt;.
     /// Lets a headless run play AI-vs-AI games, e.g. godot --headless --path . --quit-after 600 -- --scenario=07 --white=club --black=aggressive
     /// </summary>
     private void ApplyCommandLine()
@@ -85,7 +92,13 @@ public partial class Sandbox : Control
             ? _scenarios.FirstOrDefault(s => s.Path.Contains(wanted, StringComparison.OrdinalIgnoreCase)
                 || s.Name.Contains(wanted, StringComparison.OrdinalIgnoreCase)) ?? _scenarios[0]
             : _scenarios[0];
-        LoadScenario(scenario);
+        if (args.TryGetValue("seed", out var seedText) && ulong.TryParse(seedText, out var seed)) _encounterSeed = seed;
+        var encounter = args.TryGetValue("encounter", out var encId)
+            ? _encounters?.Encounters.FirstOrDefault(e => e.Id.Equals(encId, StringComparison.OrdinalIgnoreCase)
+                || e.Name.Equals(encId, StringComparison.OrdinalIgnoreCase))
+            : null;
+        if (encounter != null) LoadEncounter(encounter, _encounterSeed);
+        else LoadScenario(scenario);
 
         foreach (var side in new[] { Side.White, Side.Black })
         {
@@ -146,9 +159,55 @@ public partial class Sandbox : Control
         }
     }
 
+    private void LoadEncounters()
+    {
+        const string path = "res://encounters/prototype.json";
+        if (!FileAccess.FileExists(path)) return;
+        try
+        {
+            _encounters = EncounterSet.Parse(FileAccess.GetFileAsString(path));
+            var unported = _encounters.UnknownAbilities(_catalog);
+            GD.Print($"[Sandbox] loaded {_encounters.Encounters.Count} encounters from {path}"
+                + (unported.Count > 0 ? $" (not ported yet, skipped: {string.Join(", ", unported)})" : ""));
+        }
+        catch (FormatException e)
+        {
+            GD.PrintErr($"[Sandbox] {path}: {e.Message}");
+        }
+    }
+
+    /// <summary>Generate a battle from the encounter set: the prototype's 6x6 board and value-budgeted armies.</summary>
+    private void LoadEncounter(EncounterSpec spec, ulong seed)
+    {
+        CancelThinking();
+        _encounter = (spec, seed);
+        var g = EncounterGenerator.Generate(_encounters!, spec, _catalog, seed);
+        _state = g.State;
+        SetPlayer(Side.White, null);
+        try
+        {
+            AgentProfile? ai = null;
+            if (spec.Ai != null)
+            {
+                using var doc = JsonDocument.Parse(spec.Ai);
+                ai = _factory.ParseProfile(doc.RootElement);
+            }
+            SetPlayer(Side.Black, ai);
+        }
+        catch (Exception e) when (e is AgentConfigException or JsonException)
+        {
+            GD.PrintErr($"[Sandbox] encounter {spec.Id}: ai: {e.Message}");
+            SetPlayer(Side.Black, null);
+        }
+        string description = $"{spec.Description} Enemy AI: {_players[Side.Black]?.Profile.Name ?? "none"}.\n"
+            + $"You: {string.Join(", ", g.Player)}\nEnemy: {string.Join(", ", g.Enemy)}";
+        StartGame($"{spec.Name}  (seed {seed})", description);
+    }
+
     private void LoadScenario(Scenario scenario)
     {
         CancelThinking();
+        _encounter = null;
         _current = scenario;
         string json = FileAccess.GetFileAsString(scenario.Path);
         _state = MapLoader.Load(json, _catalog);
@@ -164,17 +223,29 @@ public partial class Sandbox : Control
             SetPlayer(Side.White, null);
             SetPlayer(Side.Black, null);
         }
+        StartGame(scenario.Name, scenario.Description);
+    }
+
+    private void StartGame(string title, string description)
+    {
         Game.BeginGame(_state);
         _state.ClearHistory();
         _undoMarks.Clear();
-        _title.Text = scenario.Name;
-        _description.Text = scenario.Description;
+        _title.Text = title;
+        _description.Text = description;
         _trace.Text = "";
         _board.State = _state;
         _board.Markers.Clear();
         ClearSelection();
-        GD.Print($"[Sandbox] loaded '{scenario.Name}' ({_state.Width}x{_state.Height}, {_state.Rules} rules)");
+        _sinceLastMove = 0;
+        GD.Print($"[Sandbox] loaded '{title}' ({_state.Width}x{_state.Height}, {_state.Rules} rules)");
         Refresh();
+    }
+
+    private void Restart()
+    {
+        if (_encounter is { } e) LoadEncounter(e.Spec, e.Seed);
+        else LoadScenario(_current);
     }
 
     // ------------------------------------------------------------------ clicks
@@ -500,6 +571,21 @@ public partial class Sandbox : Control
         _status.AddThemeColorOverride("font_color", new Color(0.6f, 0.9f, 1f));
         panel.AddChild(_status);
 
+        if (_encounters is { Encounters.Count: > 0 } set)
+        {
+            var encounters = Section(panel, "Roguelike encounters (prototype balance, random armies)");
+            foreach (var enc in set.Encounters)
+            {
+                var spec = enc;
+                AddButton(encounters, spec.Name, () => LoadEncounter(spec, _encounterSeed));
+            }
+            AddButton(encounters, "Reroll", () =>
+            {
+                _encounterSeed++;
+                LoadEncounter(_encounter?.Spec ?? set.Encounters[0], _encounterSeed);
+            });
+        }
+
         var scenarios = Section(panel, "Scenarios");
         foreach (var sc in _scenarios) AddButton(scenarios, sc.Name, () => LoadScenario(sc));
 
@@ -563,7 +649,7 @@ public partial class Sandbox : Control
 
         var actions = Section(panel, "Actions");
         AddButton(actions, "Undo", Undo);
-        AddButton(actions, "Restart", () => LoadScenario(_current));
+        AddButton(actions, "Restart", Restart);
         AddButton(actions, "Switch side to move", () => Edit(() => _state.SetSideToMove(_state.SideToMove.Opponent())));
 
         _hint = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart, CustomMinimumSize = new Vector2(600, 0) };

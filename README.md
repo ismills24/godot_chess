@@ -40,3 +40,5 @@ python tools/make_scenarios.py
 The Ziva editor add-on is installed per machine into `addons/ziva_agent/` (gitignored, not redistributable). Copy it from another project or install it from ziva.sh.
 
 AI opponents (profiles, per-level injection, tuning): [docs/AI.md](docs/AI.md).
+
+Battles are meant to be short, on small boards (6x6). The sandbox's Encounters row generates the prototype's roguelike battles from `encounters/prototype.json`; see the design direction in [docs/PORT_PLAN.md](docs/PORT_PLAN.md).

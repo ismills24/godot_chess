@@ -6,6 +6,13 @@ Source reviewed: `GigaChess/rogue-chess` @ `164be05` (branch `overworld-poc`). T
 
 ---
 
+## 0. Design direction (2026-11-19)
+
+- **Small boards, short battles.** Battles are not full chess games. The target feel is WarioWare: a few good moves decide a battle. Full 8x8 armies with content are too much to reason about, because the chain reactions of one move become unreadable. The prototype's roguelike mode is the reference: **6x6 boards** and small value-budgeted armies.
+- **Test balance** (from the prototype, for testing, not final): the player gets a king plus 10 points (at least 2 pawns), with one starting ability on its most valuable piece. Enemies get 8 / 10+1 / 16+4 points (pieces + abilities). The sandbox generates these from `encounters/prototype.json` (Encounters row, Reroll for a new seed).
+- **What this means for the engine:** reactions must stay readable on a crowded small board (the wave markers and trace matter), and the AI must decide fast (depth 5 takes about 0.15 s on 6x6).
+- **Open: battle length.** AI-vs-AI encounter battles currently average about 55 plies, and a quarter don't finish within 120. The prototype had a 3-minute chess clock (+30 s per win) that forced decisions. A turn limit, a clock, a shrinking board or a killer-instinct AI are all options. This is a design decision, not an engine one.
+
 ## 1. What's wrong today
 
 Most of the bugs come from the architecture rather than from individual pieces. The port fixes the causes listed below instead of patching each symptom.
@@ -194,6 +201,13 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 - **Rules** (`Rules/`): `RuleSet.Standard` (check, castling, en passant, under-promotion) and `RuleSet.Rogue` (capture the royal piece, no castling or en passant, auto-queen). Castling works on any board width and is driven by moves-made, not rights bits. `MoveApplier` applies moves directly; M2 wraps it in the event resolver.
 - **Verified:** perft matches published counts for the start position (d4), Kiwipete (d4, 4,085,603), positions 3 (d5), 4 and 4-mirrored (d4), and 5 (d3). Random self-play fuzz (4 positions × 40 games × 120 plies) checks the incremental hash against a full recompute after every move and requires an exact state restore after unwinding. 48 tests take about 3 s in Release.
 - **Speed baseline:** in the Godot editor (Debug build), the start position perft(4) runs at about 450k nodes/s. Legality is checked by make/unmake plus a scan of every attacker, and there is no piece list yet, so M4 has clear room to optimise.
+
+### Encounters (2026-11-19)
+
+- `Encounters/EncounterGenerator.cs` ports the prototype's `roster.ts` and `boardGeneration.ts`, made deterministic (seeded). It builds value-budgeted armies (king outside the budget, minimum pawns, random affordable pieces, then abilities within an ability budget, plus the player's starting ability on its most valuable piece) and places them: king back-middle, pawns in random columns, other pieces behind their pawn.
+- **Prototype bugs fixed:** pieces that found no square behind their pawn, and pawns beyond one per column, were silently dropped from the army.
+- `encounters/prototype.json` holds the prototype's balance and per-encounter AI (`casual`, `club`, an inline `boss` profile). Abilities that aren't ported are skipped and listed when the set loads. The prototype's own `ai` field was never read: every battle used EfficientAI at depth 10 / 2 s.
+- The sandbox has an Encounters row with Reroll, and headless runs take `-- --encounter=boss-1 --seed=2 --white=club`. 8 encounter tests.
 
 ### M4 as built (2026-11-19): AI
 

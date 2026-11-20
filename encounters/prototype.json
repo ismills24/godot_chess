@@ -1,0 +1,35 @@
+{
+  // The TypeScript prototype's roguelike balance (rogue-manager: initialContext.ts, hardcodedOverworld.ts),
+  // used as a test bed, not final design. Battles are 6x6; each side gets a king plus a value budget
+  // (pawn 1, knight/bishop 3, rook 5, queen 9) with at least two pawns.
+  "player": {
+    "pieceValue": 10,
+    "minimumPawns": 2,
+    // The prototype's STARTING_PLAYER_ABILITIES. FireMage, FreezeMage, WallPlacement, Marksman, Revenant and
+    // ChronoCapture are not ported yet and are skipped until they are.
+    "startingAbilities": ["Exploding", "Phantom", "Predator", "FireMage", "FreezeMage", "WallPlacement", "Marksman", "Revenant", "ChronoCapture"]
+  },
+  "encounters": [
+    {
+      "id": "enemy-1",
+      "name": "Encounter 1",
+      "description": "8 points of pieces, no abilities.",
+      "enemy": { "pieceValue": 8, "abilityValue": 0 },
+      "ai": "casual"
+    },
+    {
+      "id": "enemy-2",
+      "name": "Encounter 2",
+      "description": "10 points of pieces and 1 point of abilities.",
+      "enemy": { "pieceValue": 10, "abilityValue": 1 },
+      "ai": "club"
+    },
+    {
+      "id": "boss-1",
+      "name": "Boss",
+      "description": "16 points of pieces and 4 points of abilities, deeper search.",
+      "enemy": { "pieceValue": 16, "abilityValue": 4 },
+      "ai": { "extends": "club", "id": "boss", "name": "Boss", "maxDepth": 5, "nodeBudget": 600000, "choiceMargin": 0, "rootNoise": 0 }
+    }
+  ]
+}
