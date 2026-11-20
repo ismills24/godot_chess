@@ -14,10 +14,6 @@ config/name="Godot Chess"
 run/main_scene="res://sandbox/Sandbox.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 
-[autoload]
-
-ZivaPlaytestIO="*res://addons/ziva_agent/scripts/ziva_input_harness.gd"
-
 [display]
 
 window/size/viewport_width=1600

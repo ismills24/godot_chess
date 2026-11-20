@@ -67,6 +67,6 @@ and backward scrubbing deterministic without accumulating rotations.
 This is an assembly animation study: parts are moved by a presentation timeline,
 without hands/tools, physics, or gameplay ability changes. The threads are visual
 geometry, not a manufacturing specification or simulated threaded joint. The
-previous bomb-head version ran without errors at 120 FPS average / 116 FPS 1% low
-in a 16-second GL Compatibility debug run on the same RTX 3080 Ti; that measurement
-does not validate the revised metal-head rendering.
+revised metal-head version was visually checked with the dowel exposed and fully
+seated, then ran without errors at 120 FPS average / 116 FPS 1% low in a complete
+16-second GL Compatibility debug run on the same RTX 3080 Ti.
