@@ -10,7 +10,7 @@ NAMES = {'p': 'Pawn', 'n': 'Knight', 'b': 'Bishop', 'r': 'Rook', 'q': 'Queen', '
 def xy(sq):
     return ord(sq[0]) - ord('a'), int(sq[1:]) - 1
 
-def build(name, description, fen, abilities=None, tiles=None, rules="rogue"):
+def build(name, description, fen, abilities=None, tiles=None, rules="rogue", ai=None):
     rows, side = fen.split()[0].split('/'), fen.split()[1]
     height, pieces, width = len(rows), [], 0
     for r, row in enumerate(rows):
@@ -28,8 +28,11 @@ def build(name, description, fen, abilities=None, tiles=None, rules="rogue"):
             px, py = xy(sq)
             next(p for p in pieces if p["x"] == px and p["y"] == py)["decorators"].append(ability)
     tile_list = [{"type": t, "x": xy(sq)[0], "y": xy(sq)[1]} for t, squares in (tiles or {}).items() for sq in squares]
-    return {"name": name, "description": description, "rules": rules, "width": width, "height": height,
+    data = {"name": name, "description": description, "rules": rules, "width": width, "height": height,
             "startingPlayer": "White" if side == 'w' else "Black", "pieces": pieces, "tiles": tile_list}
+    if ai:
+        data["ai"] = ai  # which sides the AI plays, by profile id or inline profile (see docs/AI.md)
+    return data
 
 SCENARIOS = {
     "01_explosion_chain": build(
@@ -65,6 +68,15 @@ SCENARIOS = {
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w",
         abilities={"Exploding": ["e2", "e7"], "Scapegoat": ["b1", "g8"], "Phantom": ["a1", "h8"], "Predator": ["d2", "d7"]},
         tiles={"WallTile": ["d4", "e5"], "FogTile": ["c5", "f4"], "GuardianTile": ["d5", "e4"]}),
+    "07_versus_ai": build(
+        "Versus the AI",
+        "You play White against the Aggressive AI (chosen by this map's \"ai\" field). Both armies carry ported "
+        "content: exploding f-pawns, Scapegoat bishops, a Predator knight each, guardian tiles on d4 and d5. "
+        "Change either player in the Players row; pick an AI for both sides to watch them play.",
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w",
+        abilities={"Exploding": ["f2", "f7"], "Scapegoat": ["c1", "c8"], "Predator": ["g1", "g8"]},
+        tiles={"GuardianTile": ["d4", "d5"]},
+        ai={"black": "aggressive"}),
     "06_empty_board": build(
         "Empty board",
         "Just two kings. Use Place, Tile and Ability modes to build your own test position, then play it.",

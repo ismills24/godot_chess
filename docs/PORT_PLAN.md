@@ -181,7 +181,7 @@ The engine is a separate project that the Godot assembly references. A test (`En
 | **M1** ✅ | State + ops + undo + Zobrist; standard pieces via movement primitives; standard rules | Perft matches known counts at depth 4 on the start position plus 2 tactical positions; make/unmake fuzz is clean |
 | **M2** ✅ | Resolver (§2.4), `PlayTurn`, trace, JSON map importer, scenario runner, `RESOLUTION_RULES.md` | Scenario harness runs; ordering and loop and rollback rules each have a test |
 | **M3** | Content port, each item with scenarios (see §5) | All 23 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end |
-| **M4** | AI: search, eval, profiles, threading, debug output | Finds mate-in-1/2, avoids hanging the royal piece, respects Exploding/Guardian in tactics; nodes/sec benchmark recorded vs the TS `EfficientAI` on the same positions |
+| **M4** ✅ | AI: search, eval, profiles, threading, debug output | Finds mate-in-1/2, avoids hanging the royal piece, respects Exploding/Guardian in tactics; nodes/sec benchmark recorded vs the TS `EfficientAI` on the same positions |
 | **M5** | Debug sandbox scene | Load map, play both sides or vs AI, view trace and AI top-N |
 
 M1–M2 are the critical path. M3 can run in parallel per content family once M2's API is frozen.
@@ -194,6 +194,16 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 - **Rules** (`Rules/`): `RuleSet.Standard` (check, castling, en passant, under-promotion) and `RuleSet.Rogue` (capture the royal piece, no castling or en passant, auto-queen). Castling works on any board width and is driven by moves-made, not rights bits. `MoveApplier` applies moves directly; M2 wraps it in the event resolver.
 - **Verified:** perft matches published counts for the start position (d4), Kiwipete (d4, 4,085,603), positions 3 (d5), 4 and 4-mirrored (d4), and 5 (d3). Random self-play fuzz (4 positions × 40 games × 120 plies) checks the incremental hash against a full recompute after every move and requires an exact state restore after unwinding. 48 tests take about 3 s in Release.
 - **Speed baseline:** in the Godot editor (Debug build), the start position perft(4) runs at about 450k nodes/s. Legality is checked by make/unmake plus a scan of every attacker, and there is no piece list yet, so M4 has clear room to optimise.
+
+### M4 as built (2026-11-19): AI
+
+- **Injection** (`AI/AgentFactory.cs`): a level names its opponent by profile id or describes it inline (the map's `"ai"` field, e.g. `{ "black": "aggressive" }`). Agent kinds, evaluators and profiles are each registered separately, so a new AI implementation or scoring function plugs in without touching the others. Details in [AI.md](AI.md).
+- **Search** (`AI/Search.cs`): alpha-beta with iterative deepening, a Zobrist-keyed transposition table, quiescence on captures, and MVV-LVA / killer / history ordering. Every node is a real `Game.PlayTurn`, so explosions, scapegoats, guardians and future content are understood with no AI code. A decision is reproducible for a given profile, seed and position (the node budget is the limit; wall-clock time is only a safety cap).
+- **Profiles** (`AI/AgentProfile.cs`, `ai/profiles.json`): strength (depth, nodes, quiescence) and personality (eval weights, choice margin, root noise, blunder chance, contempt). Built in: random, novice, casual, club, master, aggressive, defensive, greedy, chaotic. Examples of extending them in JSON: berserker, turtle, collector.
+- **Sandbox**: a Players row (Human or any profile per side), Pause AI, an "AI move" button (also works as a hint), the AI's reasoning (top moves, score, depth, nodes/s) above each move's trace, undo back to your own turn, and `-- --scenario= --white= --black=` for headless AI-vs-AI runs. New scenario 07 "Versus the AI".
+- **Verified:** 18 AI tests: king capture in 1 and 2, checkmate under standard rules, saving its own king, not capturing an Exploding piece next to its own king, using an enemy Exploding piece to kill the king, the Guardian tile without lookahead, determinism with the state left untouched, cancellation, seed variety, no blunder past a forced win, weights changing the evaluation, JSON extends/merge/errors, map players, custom kinds and evaluators, and beating random play 4/4. A headless Godot AI-vs-AI game ran cleanly. 129 tests.
+- **Speed:** about 55–110k resolved turns per second in Release (start position, Kiwipete); a club move takes 20–150 ms.
+- **Not done:** the comparison against the TS `EfficientAI`, a fast path for positions without hooked content, game-history repetition, and a "hunt the king" term to convert won positions faster.
 
 ### M3 progress (2026-11-17): first content batch + interactive sandbox
 

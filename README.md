@@ -38,3 +38,5 @@ python tools/make_scenarios.py
 ## Ziva
 
 The Ziva editor add-on is installed per machine into `addons/ziva_agent/` (gitignored, not redistributable). Copy it from another project or install it from ziva.sh.
+
+AI opponents (profiles, per-level injection, tuning): [docs/AI.md](docs/AI.md).

@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Godot;
 using RogueChess.Engine;
+using RogueChess.Engine.AI;
 using RogueChess.Engine.Content;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Notation;
@@ -18,6 +21,8 @@ namespace GodotChess.Sandbox;
 /// Debug sandbox: load a scenario (maps/sandbox, plus the legacy maps that load), play both sides, edit the
 /// position (place pieces, set tiles, toggle abilities, erase), undo anything, and see what each turn did:
 /// wave-numbered arrows on the board and the full resolution trace in the side panel.
+/// Either side can be played by an AI profile (built-in presets plus res://ai/profiles.json); a map's
+/// "ai" field picks the players when it loads. The AI thinks on a background thread on a cloned state.
 /// </summary>
 public partial class Sandbox : Control
 {
@@ -41,13 +46,61 @@ public partial class Sandbox : Control
     private AbilityDef? _abilityDef;
     private readonly Dictionary<Tool, Button> _toolButtons = new();
 
+    // AI players
+    private const double AiMoveDelay = 0.35;
+    private readonly AgentFactory _factory = new();
+    private readonly Dictionary<Side, IChessAgent?> _players = new() { [Side.White] = null, [Side.Black] = null };
+    private readonly Dictionary<Side, OptionButton> _playerPickers = new();
+    private CheckBox _aiPaused = null!;
+    private Task<AgentDecision>? _thinking;
+    private CancellationTokenSource? _thinkCancel;
+    private IChessAgent? _thinkingAgent;
+    private ulong _thinkHash;
+    private int _thinkDepth;
+    private bool _forceAiMove;
+    private double _sinceLastMove;
+
     private sealed record Scenario(string Name, string Description, string Path);
 
     public override void _Ready()
     {
+        LoadAiProfiles();
         DiscoverScenarios();
         BuildUi();
-        LoadScenario(_scenarios[0]);
+        ApplyCommandLine();
+    }
+
+    /// <summary>
+    /// Optional user args (after "--"): --scenario=&lt;file name or title&gt; --white=&lt;profile|human&gt; --black=&lt;profile|human&gt;.
+    /// Lets a headless run play AI-vs-AI games, e.g. godot --headless --path . --quit-after 600 -- --scenario=07 --white=club --black=aggressive
+    /// </summary>
+    private void ApplyCommandLine()
+    {
+        var args = OS.GetCmdlineUserArgs()
+            .Select(a => a.TrimStart('-').Split('=', 2))
+            .Where(kv => kv.Length == 2)
+            .ToDictionary(kv => kv[0].ToLowerInvariant(), kv => kv[1]);
+
+        var scenario = args.TryGetValue("scenario", out var wanted)
+            ? _scenarios.FirstOrDefault(s => s.Path.Contains(wanted, StringComparison.OrdinalIgnoreCase)
+                || s.Name.Contains(wanted, StringComparison.OrdinalIgnoreCase)) ?? _scenarios[0]
+            : _scenarios[0];
+        LoadScenario(scenario);
+
+        foreach (var side in new[] { Side.White, Side.Black })
+        {
+            if (!args.TryGetValue(side.ToString().ToLowerInvariant(), out var id)) continue;
+            try
+            {
+                SetPlayer(side, id.Equals("human", StringComparison.OrdinalIgnoreCase) ? null : _factory.GetProfile(id));
+                GD.Print($"[Sandbox] {side} played by {id}");
+            }
+            catch (AgentConfigException e)
+            {
+                GD.PrintErr($"[Sandbox] {e.Message}");
+            }
+        }
+        Refresh();
     }
 
     // ------------------------------------------------------------------ scenarios
@@ -78,10 +131,39 @@ public partial class Sandbox : Control
         }
     }
 
+    private void LoadAiProfiles()
+    {
+        const string path = "res://ai/profiles.json";
+        if (!FileAccess.FileExists(path)) return;
+        try
+        {
+            var loaded = _factory.LoadProfiles(FileAccess.GetFileAsString(path));
+            GD.Print($"[Sandbox] loaded {loaded.Count} AI profiles from {path}");
+        }
+        catch (Exception e) when (e is AgentConfigException or JsonException)
+        {
+            GD.PrintErr($"[Sandbox] {path}: {e.Message}");
+        }
+    }
+
     private void LoadScenario(Scenario scenario)
     {
+        CancelThinking();
         _current = scenario;
-        _state = MapLoader.Load(FileAccess.GetFileAsString(scenario.Path), _catalog);
+        string json = FileAccess.GetFileAsString(scenario.Path);
+        _state = MapLoader.Load(json, _catalog);
+        try
+        {
+            var (white, black) = _factory.ParseMapPlayers(json);
+            SetPlayer(Side.White, white);
+            SetPlayer(Side.Black, black);
+        }
+        catch (Exception e) when (e is AgentConfigException or JsonException)
+        {
+            GD.PrintErr($"[Sandbox] {scenario.Path}: ai: {e.Message}");
+            SetPlayer(Side.White, null);
+            SetPlayer(Side.Black, null);
+        }
         Game.BeginGame(_state);
         _state.ClearHistory();
         _undoMarks.Clear();
@@ -145,7 +227,8 @@ public partial class Sandbox : Control
         ClearSelection();
         var piece = _state.PieceAt(sq);
         bool over = _state.Rules.Evaluate(_state) != GameOutcome.Ongoing;
-        if (piece != null && piece.Side == _state.SideToMove && !over)
+        bool human = _players[_state.SideToMove] == null;
+        if (piece != null && piece.Side == _state.SideToMove && !over && human)
         {
             _board.Selected = sq;
             _legal.Clear();
@@ -156,8 +239,9 @@ public partial class Sandbox : Control
         Refresh(piece);
     }
 
-    private void PlayMove(Move move)
+    private void PlayMove(Move move, string? aiSummary = null)
     {
+        _sinceLastMove = 0;
         string text = MoveText.Format(_state, move);
         var side = _state.SideToMove;
         int mark = _state.UndoDepth;
@@ -173,12 +257,13 @@ public partial class Sandbox : Control
         }
 
         _undoMarks.Add(mark);
-        ShowTrace(result.Trace!, $"{side} {text}");
+        ShowTrace(result.Trace!, aiSummary != null ? $"{aiSummary}\n\n{side} {text}" : $"{side} {text}");
         Refresh();
     }
 
     private void Edit(Action change)
     {
+        CancelThinking();
         _undoMarks.Add(_state.UndoDepth);
         change();
         _board.Markers.Clear();
@@ -188,9 +273,17 @@ public partial class Sandbox : Control
 
     private void Undo()
     {
+        CancelThinking();
         if (_undoMarks.Count == 0) return;
         _state.UndoTo(_undoMarks[^1]);
         _undoMarks.RemoveAt(_undoMarks.Count - 1);
+        // Against an AI, keep undoing until it's the human's turn again (otherwise the AI just replays).
+        while (_undoMarks.Count > 0 && _players[_state.SideToMove] != null && _players[_state.SideToMove.Opponent()] == null)
+        {
+            _state.UndoTo(_undoMarks[^1]);
+            _undoMarks.RemoveAt(_undoMarks.Count - 1);
+        }
+        _sinceLastMove = 0;
         _board.Markers.Clear();
         _trace.Text = "(undone)";
         ClearSelection();
@@ -246,13 +339,17 @@ public partial class Sandbox : Control
             GameOutcome.WhiteWins => "WHITE WINS",
             GameOutcome.BlackWins => "BLACK WINS",
             GameOutcome.Draw => "DRAW",
-            _ => $"{_state.SideToMove} to move",
+            _ when _thinkingAgent != null => $"{_state.SideToMove} ({_thinkingAgent.Profile.Name}) is thinking...",
+            _ => $"{_state.SideToMove} to move" + (_players[_state.SideToMove] is { } ai ? $" ({ai.Profile.Name})" : ""),
         };
         _status.Text = $"{result}   ·   {_state.Rules} rules   ·   ply {_state.Ply}   ·   undo steps {_undoMarks.Count}";
 
         _hint.Text = inspected != null ? Describe(inspected) : _tool switch
         {
             Tool.Play when outcome != GameOutcome.Ongoing => "Game over. Undo, Restart, or edit the position to keep playing.",
+            Tool.Play when _players[_state.SideToMove] is { } ai && _aiPaused.ButtonPressed =>
+                $"AI paused. Press 'AI move' to let {ai.Profile.Name} play one move.",
+            Tool.Play when _players[_state.SideToMove] is { } ai => $"{ai.Profile.Name}: {ai.Profile.Description}",
             Tool.Play => "Click a piece of the side to move, then a highlighted square.",
             Tool.Place => $"Click a square to place a {_placeSide} {_placeDef.Name} (replaces what's there).",
             Tool.Tile => $"Click a square to make it {_tileDef.Name}.",
@@ -271,6 +368,106 @@ public partial class Sandbox : Control
         var tile = _state.TileAt(p.Square);
         if (!tile.Def.IsDefault) sb.Append($"   ·   tile: {tile}");
         return sb.ToString();
+    }
+
+    // ------------------------------------------------------------------ AI players
+
+    public override void _Process(double delta)
+    {
+        _sinceLastMove += delta;
+
+        if (_thinking != null)
+        {
+            if (!_thinking.IsCompleted) return;
+            var task = _thinking;
+            var agent = _thinkingAgent!;
+            _thinking = null;
+            _thinkingAgent = null;
+            if (task.IsFaulted)
+            {
+                GD.PrintErr($"[Sandbox] AI {agent.Profile.Id} failed: {task.Exception?.GetBaseException()}");
+                _aiPaused.ButtonPressed = true;
+                Refresh();
+                return;
+            }
+            // Ignore stale results (the position changed while the AI was thinking).
+            if (task.IsCanceled || _state.Hash != _thinkHash || _state.UndoDepth != _thinkDepth) { Refresh(); return; }
+
+            var decision = task.Result;
+            string summary = $"AI {agent.Profile.Name} ({agent.Profile.Id}): {decision.Format(_state).TrimEnd()}";
+            if (decision.Move is { } move) PlayMove(move, summary);
+            else Refresh();
+            return;
+        }
+
+        if (_tool != Tool.Play) return;
+        var player = _players[_state.SideToMove];
+        bool force = _forceAiMove;
+        _forceAiMove = false;
+        if (!force && (player == null || _aiPaused.ButtonPressed || _sinceLastMove < AiMoveDelay)) return;
+        if (_state.Rules.Evaluate(_state) != GameOutcome.Ongoing) return;
+
+        // "AI move" on a human's turn: the Club profile suggests a move and plays it.
+        StartThinking(player ?? _factory.Create(AgentProfile.Club));
+    }
+
+    private void StartThinking(IChessAgent agent)
+    {
+        ClearSelection();
+        var snapshot = _state.Clone();
+        _thinkHash = _state.Hash;
+        _thinkDepth = _state.UndoDepth;
+        _thinkCancel = new CancellationTokenSource();
+        var token = _thinkCancel.Token;
+        _thinkingAgent = agent;
+        _thinking = Task.Run(() => agent.Decide(snapshot, token));
+        Refresh();
+    }
+
+    private void CancelThinking()
+    {
+        _thinkCancel?.Cancel();
+        _thinkCancel = null;
+        _thinking = null;
+        _thinkingAgent = null;
+    }
+
+    private void SetPlayer(Side side, AgentProfile? profile)
+    {
+        CancelThinking();
+        if (profile != null && !_factory.Profiles.Any(p => p.Id == profile.Id))
+        {
+            _factory.RegisterProfile(profile); // an inline profile from a map
+            RebuildPickers();
+        }
+        _players[side] = profile == null ? null : _factory.Create(profile);
+        if (_playerPickers.TryGetValue(side, out var picker))
+        {
+            int index = 0;
+            for (int i = 0; i < picker.ItemCount; i++)
+                if (picker.GetItemMetadata(i).AsString() == (profile?.Id ?? "")) index = i;
+            picker.Select(index);
+        }
+        _sinceLastMove = 0;
+    }
+
+    private void RebuildPickers()
+    {
+        foreach (var (side, picker) in _playerPickers)
+        {
+            string selected = _players[side]?.Profile.Id ?? "";
+            picker.Clear();
+            picker.AddItem("Human");
+            picker.SetItemMetadata(0, "");
+            foreach (var p in _factory.Profiles)
+            {
+                picker.AddItem($"AI: {p.Name}");
+                picker.SetItemMetadata(picker.ItemCount - 1, p.Id);
+                picker.SetItemTooltip(picker.ItemCount - 1, p.Description);
+                if (p.Id == selected) picker.Select(picker.ItemCount - 1);
+            }
+            if (selected == "") picker.Select(0);
+        }
     }
 
     // ------------------------------------------------------------------ UI construction
@@ -305,6 +502,27 @@ public partial class Sandbox : Control
 
         var scenarios = Section(panel, "Scenarios");
         foreach (var sc in _scenarios) AddButton(scenarios, sc.Name, () => LoadScenario(sc));
+
+        var players = Section(panel, "Players");
+        foreach (var side in new[] { Side.White, Side.Black })
+        {
+            var s = side;
+            players.AddChild(new Label { Text = $"{s}:" });
+            var picker = new OptionButton { Name = $"{s}Player", CustomMinimumSize = new Vector2(170, 0) };
+            picker.ItemSelected += index =>
+            {
+                string id = picker.GetItemMetadata((int)index).AsString();
+                SetPlayer(s, id == "" ? null : _factory.GetProfile(id));
+                Refresh();
+            };
+            _playerPickers[s] = picker;
+            players.AddChild(picker);
+        }
+        RebuildPickers();
+        _aiPaused = new CheckBox { Text = "Pause AI", Name = "PauseAI" };
+        _aiPaused.Toggled += _ => Refresh();
+        players.AddChild(_aiPaused);
+        AddButton(players, "AI move", () => { _forceAiMove = true; });
 
         var tools = Section(panel, "Tool");
         var toolGroup = new ButtonGroup();

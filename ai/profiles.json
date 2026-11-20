@@ -1,0 +1,31 @@
+{
+  // Extra AI profiles, loaded by the sandbox on top of the built-in presets
+  // (random, novice, casual, club, master, aggressive, defensive, greedy, chaotic).
+  // Each profile may "extend" any profile defined before it and override any field; "weights" merge field by field.
+  // All fields and what they do: docs/AI.md.
+  "profiles": [
+    {
+      "id": "berserker",
+      "extends": "aggressive",
+      "name": "Berserker",
+      "description": "Throws everything at the king. Shallow, fast, and reckless.",
+      "maxDepth": 2,
+      "weights": { "kingPressure": 50, "threats": 35, "kingShelter": 0 },
+      "contempt": 150
+    },
+    {
+      "id": "turtle",
+      "extends": "defensive",
+      "name": "Turtle",
+      "description": "Hides behind its pieces and waits for you to overextend.",
+      "weights": { "kingShelter": 45, "mobility": 1, "center": 1 }
+    },
+    {
+      "id": "collector",
+      "extends": "greedy",
+      "name": "Collector",
+      "description": "Values abilities far above plain material: will trade a rook for an Exploding pawn.",
+      "weights": { "abilityMaterial": 300 }
+    }
+  ]
+}
