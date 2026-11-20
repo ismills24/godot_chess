@@ -118,7 +118,7 @@ A depth-3 `club` move typically takes 20–150 ms in the sandbox.
 
 ## Known limits / next steps
 
-- **Converting won positions.** At depth 3 the AI builds large leads but can be slow to hunt the king down. A "drive the enemy king" term for the side that is ahead would fix this.
+- **Converting won positions** (later, as a personality trait): at depth 3 the AI builds large leads but can be slow to hunt the king down. A "killer instinct" weight that drives the enemy king when ahead would make some opponents ruthless and leave others sloppy.
 - **No game-history repetition detection.** Only repetitions within the search line are scored as draws.
 - **No fast path yet** for positions without hooked content. Every node runs the full resolver.
 - **Not yet compared with the TypeScript `EfficientAI`** on the same positions.

@@ -203,7 +203,7 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 - **Sandbox**: a Players row (Human or any profile per side), Pause AI, an "AI move" button (also works as a hint), the AI's reasoning (top moves, score, depth, nodes/s) above each move's trace, undo back to your own turn, and `-- --scenario= --white= --black=` for headless AI-vs-AI runs. New scenario 07 "Versus the AI".
 - **Verified:** 18 AI tests: king capture in 1 and 2, checkmate under standard rules, saving its own king, not capturing an Exploding piece next to its own king, using an enemy Exploding piece to kill the king, the Guardian tile without lookahead, determinism with the state left untouched, cancellation, seed variety, no blunder past a forced win, weights changing the evaluation, JSON extends/merge/errors, map players, custom kinds and evaluators, and beating random play 4/4. A headless Godot AI-vs-AI game ran cleanly. 129 tests.
 - **Speed:** about 55–110k resolved turns per second in Release (start position, Kiwipete); a club move takes 20–150 ms.
-- **Not done:** the comparison against the TS `EfficientAI`, a fast path for positions without hooked content, game-history repetition, and a "hunt the king" term to convert won positions faster.
+- **Not done:** the comparison against the TS `EfficientAI`, a fast path for positions without hooked content, game-history repetition, and a "hunt the king" weight to convert won positions faster (deferred: a personality trait, not needed for the first release).
 
 ### M3 progress (2026-11-17): first content batch + interactive sandbox
 
