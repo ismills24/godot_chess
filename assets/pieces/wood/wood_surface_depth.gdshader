@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_opaque;
 #include "res://assets/pieces/wood/wood_lighting.gdshaderinc"
 uniform bool dark_wood = false;
+uniform float selection_amount : hint_range(0.0, 1.0) = 0.0;
 uniform bool bishop_cut = false;
 varying vec3 local_position;
 varying vec3 world_normal;
@@ -27,7 +28,7 @@ void fragment() {
     vec2 p = UV * 2.0 - 1.0;
     float r = dot(p, p);
     if (r > 0.80) { discard; }
-    ALBEDO = wood_color(local_position, world_normal, world_position, INV_VIEW_MATRIX[3].xyz, dark_wood);
+    ALBEDO = mix(wood_color(local_position, world_normal, world_position, INV_VIEW_MATRIX[3].xyz, dark_wood), vec3(0.4, 0.85, 1.0), selection_amount);
     ALPHA = exp(-4.0 * r) * 0.98;
     ALPHA_SCISSOR_THRESHOLD = 0.09;
 }

@@ -9,14 +9,17 @@ Open `res://experiments/wood_set/WoodBoardPreview.tscn` and press F6 to view all
 zoom, or use White's view, Black's view, and Overhead view. Pieces and pixel
 rendering can be toggled separately. Auto orbit provides a continuous-motion
 performance check. Player presets stop orbit and align the view with the board
-edges. The camera is orthographic, without DOF or lens distortion. The main 2D
-sandbox is unchanged.
+edges. The camera is orthographic, without DOF or lens distortion. The main sandbox
+now instantiates this board for playable 3D games.
 
 ## Integration contract
 
 - Board origin is the center of the playing surface, at Y=0.
 - Files run along +X; ranks run along -Z from White's side.
 - `square_center(file, rank)` takes zero-based file/rank and returns local position.
+- `board_width` and `board_height` default to 8; set them before adding the board
+  to the tree for other sizes. Instance method `cell_center(file, rank)` uses these
+  dimensions. Static `square_center` preserves the 8x8 preview API.
 - `SQUARE_SIZE` is 1.45 units; the playing field is 11.6 units wide.
 - The frame is 0.42 units wide, giving an outer span of 12.44 units.
 - a1 is dark and h1 is light. Queens start on their matching color at d1/d8.

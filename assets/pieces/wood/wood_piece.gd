@@ -5,6 +5,10 @@ const Splats = preload("res://assets/pieces/wood/wood_splats.gd")
 const Parts = preload("res://experiments/pawn/workshop_parts.gd")
 @export_enum("pawn", "rook", "knight", "bishop", "queen", "king") var piece_kind := "pawn"
 @export var dark_wood := false
+## Empty overrides preserve the original whole-piece scenes.
+@export var base_kind := ""
+@export var body_kind := ""
+@export var head_kind := ""
 ## Board mode uses depth-tested Gaussian cutouts; close-ups retain soft blending.
 @export var depth_tested_splats := false
 var head: Node3D
@@ -17,12 +21,15 @@ static var sleeve_materials: Dictionary = {}
 
 func _ready() -> void:
     assert(Shapes.KINDS.has(piece_kind))
-    seat_height = Shapes.SEATS[piece_kind]
+    var body_type: String = body_kind if Shapes.KINDS.has(body_kind) else piece_kind
+    var head_type: String = head_kind if Shapes.KINDS.has(head_kind) else piece_kind
+    seat_height = Shapes.SEATS[body_type]
     for module in ["base", "body"]:
         var surface := Splats.new()
         surface.name = module.capitalize()
         add_child(surface)
-        surface.configure(piece_kind, module, dark_wood, depth_tested_splats)
+        var kind: String = (base_kind if Shapes.KINDS.has(base_kind) else piece_kind) if module == "base" else body_type
+        surface.configure(kind, module, dark_wood, depth_tested_splats)
         modules.append(surface)
     head = Node3D.new()
     head.name = "Head"
@@ -31,7 +38,7 @@ func _ready() -> void:
     var top := Splats.new()
     top.name = "Carving"
     head.add_child(top)
-    top.configure(piece_kind, "head", dark_wood, depth_tested_splats)
+    top.configure(head_type, "head", dark_wood, depth_tested_splats)
     modules.append(top)
     if sleeve_mesh == null:
         var temporary := Node3D.new()

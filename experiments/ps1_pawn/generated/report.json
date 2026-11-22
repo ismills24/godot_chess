@@ -1,0 +1,114 @@
+{
+  "source": "Godot LightPawn.tscn module captures",
+  "jobs": {
+    "Base": "1a0089b08749",
+    "Body": "25e4ab550007",
+    "Head": "7cf8a7d74b8d"
+  },
+  "texture_size": 64,
+  "head_seat": 0.91,
+  "socket_radius": 0.138,
+  "dowel_radius": 0.132,
+  "modules": {
+    "Base": {
+      "source": "C:\\Users\\isaac\\Documents\\git\\godot_chess\\artifacts\\asset_harness\\1a0089b08749\\model_00001.glb",
+      "initial": {
+        "vertices": 5669,
+        "faces": 21107,
+        "triangles": 21107,
+        "boundary_edges": 4655,
+        "nonmanifold_edges": 12808,
+        "nonmanifold_vertices": 4881,
+        "loose_vertices": 0,
+        "degenerate_faces": 0,
+        "signed_volume": 0.03283978433186819,
+        "closed_manifold": false
+      },
+      "final": {
+        "vertices": 72,
+        "faces": 140,
+        "triangles": 140,
+        "boundary_edges": 0,
+        "nonmanifold_edges": 0,
+        "nonmanifold_vertices": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0,
+        "signed_volume": 0.06729332437127047,
+        "closed_manifold": true
+      },
+      "seat": 0,
+      "bounds": [
+        0.86,
+        0.86,
+        0.12
+      ]
+    },
+    "Body": {
+      "source": "C:\\Users\\isaac\\Documents\\git\\godot_chess\\artifacts\\asset_harness\\25e4ab550007\\model_00001.glb",
+      "initial": {
+        "vertices": 6950,
+        "faces": 21914,
+        "triangles": 21914,
+        "boundary_edges": 8550,
+        "nonmanifold_edges": 15741,
+        "nonmanifold_vertices": 5889,
+        "loose_vertices": 0,
+        "degenerate_faces": 0,
+        "signed_volume": 0.22785146446830004,
+        "closed_manifold": false
+      },
+      "final": {
+        "vertices": 340,
+        "faces": 438,
+        "triangles": 672,
+        "boundary_edges": 0,
+        "nonmanifold_edges": 0,
+        "nonmanifold_vertices": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0,
+        "signed_volume": 0.24842149827858806,
+        "closed_manifold": true
+      },
+      "seat": 0.145,
+      "bounds": [
+        0.817,
+        0.817,
+        0.765
+      ]
+    },
+    "Head": {
+      "source": "C:\\Users\\isaac\\Documents\\git\\godot_chess\\artifacts\\asset_harness\\7cf8a7d74b8d\\model_00001.glb",
+      "initial": {
+        "vertices": 8370,
+        "faces": 21893,
+        "triangles": 21893,
+        "boundary_edges": 8198,
+        "nonmanifold_edges": 15187,
+        "nonmanifold_vertices": 6558,
+        "loose_vertices": 0,
+        "degenerate_faces": 0,
+        "signed_volume": 0.0740677040486152,
+        "closed_manifold": false
+      },
+      "final": {
+        "vertices": 224,
+        "faces": 318,
+        "triangles": 444,
+        "boundary_edges": 0,
+        "nonmanifold_edges": 0,
+        "nonmanifold_vertices": 0,
+        "loose_vertices": 0,
+        "degenerate_faces": 0,
+        "signed_volume": 0.08488993119246076,
+        "closed_manifold": true
+      },
+      "seat": 0.91,
+      "bounds": [
+        0.56,
+        0.56,
+        0.59
+      ]
+    }
+  },
+  "triangles": 1256
+}

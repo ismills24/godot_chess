@@ -36,7 +36,7 @@ public partial class Sandbox : Control
 
     private GameState _state = null!;
     private Scenario _current = null!;
-    private BoardView _board = null!;
+    private BoardView3D _board = null!;
     private Label _title = null!, _description = null!, _status = null!, _hint = null!;
     private RichTextLabel _trace = null!;
 
@@ -429,7 +429,7 @@ public partial class Sandbox : Control
         };
 
         foreach (var (tool, button) in _toolButtons) button.SetPressedNoSignal(tool == _tool);
-        _board.QueueRedraw();
+        _board.RefreshVisuals();
     }
 
     private string Describe(Piece p)
@@ -554,7 +554,7 @@ public partial class Sandbox : Control
         root.AddThemeConstantOverride("separation", 16);
         AddChild(root);
 
-        _board = new BoardView { Name = "Board" };
+        _board = new BoardView3D { Name = "Board" };
         _board.SquareClicked += OnSquareClicked;
         root.AddChild(_board);
 

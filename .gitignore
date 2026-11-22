@@ -19,3 +19,8 @@ mono_crash.*.json
 
 # Local editor add-on (installed separately, redistribution-restricted)
 /addons/ziva_agent/
+
+# Portable asset-generation tools, weights, and working outputs
+/.tools/
+/artifacts/asset_harness/
+/tools/asset_harness/__pycache__/

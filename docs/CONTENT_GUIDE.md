@@ -15,6 +15,40 @@ How to add pieces, abilities and tiles. Read [RESOLUTION_RULES.md](RESOLUTION_RU
 
 Every new def needs one line in `ContentLibrary.CreateCatalog()`. That makes it loadable from map files and shows it in the sandbox palette.
 
+## Gameplay visuals
+
+The sandbox uses the wooden 3D board. Left-click a piece and a highlighted destination to play;
+the Place, Tile, Ability, Erase and Undo tools operate on the same engine state as before.
+Right- or middle-drag to rotate, scroll to zoom, or use the Rotate left/right buttons (45-degree steps), White view, Black view and Overhead. Selection faintly tints the piece itself; destination markers remain on the board.
+
+`assets/pieces/visual_catalog.json` maps `PieceDef.Id` to a visual recipe. A wooden recipe selects
+`base`, `body`, and `head` independently from `pawn`, `knight`, `bishop`, `rook`, `queen`, `king`.
+For example, a custom piece can use `{ "base": "rook", "body": "pawn", "head": "knight", "yawDegrees": 90 }`.
+The body's socket sets the head's height. Side determines maple/walnut and opposing orientation.
+Optional `scale` (positive, default 1) and `yawDegrees` (default 0) apply to the whole model.
+
+Alternatively, set `scene` to a `res://...tscn` PackedScene with a Node3D root. It replaces the
+wooden module recipe; custom scenes provide their own materials. All models must have their
+foot centered at local zero, with +Y up. Keep the footprint inside a 1.45-unit square.
+Catalog changes are loaded when the game starts. No engine registration changes are needed
+when replacing artwork for an existing piece type.
+
+The presentation-only `PieceVisualResolver` reads the piece object and catalog;
+`PieceVisualAssembler` builds the result. `BoardView3D` reconciles models by piece ID, updating
+position and assembly from authoritative state after moves, edits, captures, evolution and undo.
+Loading a different game clears those identities. Rendering never changes the rules or waits
+for an animation. Head-swap animation is intentionally deferred.
+
+Unmapped pieces, unavailable scenes/components and invalid transforms use a side-colored token
+with the piece's symbol. An incomplete recipe falls back as a whole, avoiding a misleading
+partial silhouette. Abilities use readable badges (including variable values); special tiles
+use named outlines until they have artwork. These overlays remain visible above the 3D assets.
+
+Run `res://experiments/gameplay/VerifyGameplayVisuals.tscn` in Godot .NET for integration checks
+covering model identity, moves, captures, undo, evolution, mixed components, placeholders,
+rectangular boards and picking. Build the C# project first. The original 2D `BoardView` remains
+available as a reference renderer; gameplay uses `BoardView3D`.
+
 ## The rules every piece of content follows
 
 1. **No mutable fields.** Defs are shared singletons. Anything that changes (charges, timers, kill counts) is a *variable* on the instance (`varCount` in the constructor), changed only by proposing `AddVar` / `SetVar`.

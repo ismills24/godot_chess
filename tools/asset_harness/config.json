@@ -1,0 +1,6 @@
+{
+  "blender": "C:/Users/isaac/Documents/Blender/blender.exe",
+  "comfy_portable": ".tools/ComfyUI_windows_portable",
+  "comfy_url": "http://127.0.0.1:8188",
+  "output_dir": "artifacts/asset_harness"
+}

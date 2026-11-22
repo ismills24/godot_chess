@@ -8,7 +8,7 @@ adding a node to the scene tree. No chess rules or picking/collision are include
 Open `res://experiments/wood_set/WoodSetPreview.tscn` and press F6 to inspect the
 12 designs, the full 32-piece inventory, or individual pairs. Pixel rendering,
 head lifting, camera orbit, and zoom are available. Display discs are neutral
-preview stands, not a chessboard. The existing 2D sandbox remains the main scene.
+preview stands, not a chessboard. The main sandbox now uses these assets for gameplay.
 
 ## Asset contract
 
@@ -23,6 +23,9 @@ preview stands, not a chessboard. The existing 2D sandbox remains the main scene
 - `set_head_lift(distance)` couples rotation to axial travel for the first 0.30
   units and lifts clear thereafter. Zero restores the seated pose. The preview
   toggle jumps between states for inspection; it is not a new swap animation.
+- Optional `base_kind`, `body_kind`, and `head_kind` select modules independently.
+  Empty overrides use `piece_kind`, preserving the original scenes. The body supplies
+  the head's mating height. Gameplay recipes live in `assets/pieces/visual_catalog.json`.
 - In a normal 3D viewport, the active Camera3D determines splat depth sorting.
   Geometry is generated once per archetype/module and shared across instances
   and wood finishes. The first load has a short generation cost.

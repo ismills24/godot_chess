@@ -1,0 +1,8 @@
+{
+  "pawn":   { "base": "pawn",   "body": "pawn",   "head": "pawn" },
+  "knight": { "base": "knight", "body": "knight", "head": "knight", "yawDegrees": 90 },
+  "bishop": { "base": "bishop", "body": "bishop", "head": "bishop" },
+  "rook":   { "base": "rook",   "body": "rook",   "head": "rook" },
+  "queen":  { "base": "queen",  "body": "queen",  "head": "queen" },
+  "king":   { "base": "king",   "body": "king",   "head": "king" }
+}
