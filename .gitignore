@@ -22,5 +22,5 @@ mono_crash.*.json
 
 # Portable asset-generation tools, weights, and working outputs
 /.tools/
-/artifacts/asset_harness/
+/artifacts/
 /tools/asset_harness/__pycache__/
