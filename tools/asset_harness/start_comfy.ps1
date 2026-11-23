@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-$config = Get-Content (Join-Path $PSScriptRoot 'config.json') -Raw | ConvertFrom-Json
+$config = & python (Join-Path $PSScriptRoot 'harness_config.py') | Out-String | ConvertFrom-Json
+if ($LASTEXITCODE -ne 0) { throw 'Could not read harness config.' }
 $portable = Join-Path $repoRoot $config.comfy_portable
 try {
     $status = Invoke-RestMethod "$($config.comfy_url)/system_stats" -TimeoutSec 2

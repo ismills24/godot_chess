@@ -24,3 +24,4 @@ mono_crash.*.json
 /.tools/
 /artifacts/
 /tools/asset_harness/__pycache__/
+/tools/asset_harness/config.local.json
