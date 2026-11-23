@@ -1,12 +1,6 @@
-extends Node3D
+extends "res://common/scene_kit.gd"
 ## The alley uses one batch per structural material and small transparent meshes for atmosphere.
 
-const BRICK := preload("res://menu/props/brick.jpg")
-const BRICK_NORMAL := preload("res://menu/props/brick_normal.jpg")
-const BRICK_ROUGH := preload("res://menu/props/brick_rough.jpg")
-const EXPOSED_BRICK := preload("res://menu/props/exposed_brick.jpg")
-const EXPOSED_BRICK_NORMAL := preload("res://menu/props/exposed_brick_normal.jpg")
-const EXPOSED_BRICK_ROUGH := preload("res://menu/props/exposed_brick_rough.jpg")
 const COBBLES := preload("res://menu/props/cobbles.jpg")
 const COBBLE_NORMAL := preload("res://menu/props/cobbles_normal.jpg")
 const BARREL := preload("res://menu/props/barrel.glb")
@@ -25,24 +19,18 @@ const SKYLINE := preload("res://menu/skyline.gdshader")
 const OIL_GLASS := preload("res://menu/oil_glass.gdshader")
 const LANTERN_GLASS := preload("res://menu/lantern_glass.gdshader")
 const MIST := preload("res://menu/mist.gdshader")
-const MASONRY := preload("res://menu/masonry.gdshader")
 const WET_COBBLES := preload("res://menu/wet_cobbles.gdshader")
 const WOOD := preload("res://menu/sign_wood.gdshader")
-const MOTION_STEP := 1.0 / 30.0
 const BRAZIER_AT := Vector3(2.40, 0, -2.60)
 const CHESS_TABLE_AT := Vector3(1.98, 0.73, 2.42)
 
-var _batches: Dictionary = {}
 var _ropes: Array[Node3D] = []
-var _moving_materials: Array[ShaderMaterial] = []
 var _flame_light: OmniLight3D
 var _hanging_lantern: Node3D
 var _lantern_light: OmniLight3D
 var _rain_material: ShaderMaterial
 var _paving: ShaderMaterial
 var _sparks: MultiMesh
-var _elapsed := 0.0
-var _update := 0.0
 
 var _stone := _paint(Color("414444"), 0.91)
 var _timber := _paint(Color("483125"), 0.81)
@@ -72,21 +60,8 @@ func build(backlight_at: Vector3) -> void:
 	_animate()
 
 
-func set_reduced_motion(enabled: bool) -> void:
-	set_process(not enabled)
-
-
-func _process(delta: float) -> void:
-	_elapsed += delta
-	_update += delta
-	if _update >= MOTION_STEP:
-		_update = fmod(_update, MOTION_STEP)
-		_animate()
-
-
 func _animate() -> void:
-	for material in _moving_materials:
-		material.set_shader_parameter("elapsed", _elapsed)
+	super()
 	for i in _ropes.size():
 		_ropes[i].rotation.x = 0.13 * sin(_elapsed * 0.75 + i * 0.82)
 	_hanging_lantern.rotation.x = 0.065 * sin(_elapsed * 1.39 + 0.74)
@@ -194,17 +169,6 @@ func _build_facades() -> void:
 		_box(slate, at + Vector3(0, height, 0), Vector3(2.58, 0.21, 2.89))
 		_box(sidewall, at + Vector3(-0.35 + 0.15 * i, height + 0.76, 0.3),
 			Vector3(0.64, 1.55 + 0.2 * (i % 3), 0.65))
-
-
-func _masonry(tint: Color, age: float, exposed: bool) -> ShaderMaterial:
-	var material := ShaderMaterial.new()
-	material.shader = MASONRY
-	material.set_shader_parameter("masonry", EXPOSED_BRICK if exposed else BRICK)
-	material.set_shader_parameter("relief", EXPOSED_BRICK_NORMAL if exposed else BRICK_NORMAL)
-	material.set_shader_parameter("rough_map", EXPOSED_BRICK_ROUGH if exposed else BRICK_ROUGH)
-	material.set_shader_parameter("color_tint", tint)
-	material.set_shader_parameter("age", age)
-	return material
 
 
 func _build_skyline() -> void:
@@ -508,26 +472,6 @@ func _build_fire(at: Vector3) -> void:
 	add_child(sparks)
 
 
-func _flame_mesh() -> ArrayMesh:
-	var mesh := SurfaceTool.new()
-	mesh.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var heights := [0.0, 0.26, 0.59, 0.83, 1.0]
-	var widths := [0.40, 0.44, 0.24, 0.09, 0.0]
-	for band in range(heights.size() - 1):
-		for side in 5:
-			var shade := 0.27 + 0.67 * fposmod(side * 0.379 + band * 0.29, 1.0)
-			for corner: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1),
-					Vector2i(0, 1), Vector2i(1, 0), Vector2i(1, 1)]:
-				var ring := band + corner.y
-				var angle := (side + corner.x) * TAU / 5.0 + ring * 0.28
-				var height: float = heights[ring]
-				var width: float = widths[ring]
-				mesh.set_color(Color(shade, shade, shade))
-				mesh.set_uv(Vector2(0, height))
-				mesh.add_vertex(Vector3(cos(angle) * width + height * height * 0.25, height, sin(angle) * width))
-	return mesh.commit()
-
-
 func _build_depth_cues() -> void:
 	# Distant wall lamps give the fog bank a warm layer between the lane and the skyline.
 	for lamp: Vector4 in [Vector4(-3.18, 3.55, -14.6, 1.0), Vector4(3.12, 3.25, -25.5, 0.62)]:
@@ -597,103 +541,3 @@ func _build_mist() -> void:
 		var sheet := _mist_sheet(mist, Vector3(0, 1.18 + layer * 0.52, -2.8 - layer * 6.15),
 			Vector2(7.5, 2.55 + layer * 1.18))
 		sheet.rotation.y = 0.16 * cos(layer * 2.0)
-
-
-func _mist_sheet(mist: ShaderMaterial, at: Vector3, dimensions: Vector2) -> MeshInstance3D:
-	var quad := QuadMesh.new()
-	quad.size = dimensions
-	var sheet := _mesh(self, quad, mist, at)
-	sheet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return sheet
-
-
-func _place_prop(scene: PackedScene, at: Vector3, height: float, yaw: float) -> void:
-	var prop := scene.instantiate() as Node3D
-	add_child(prop)
-	var bounds := AABB()
-	var found := false
-	for mesh: MeshInstance3D in prop.find_children("*", "MeshInstance3D", true, false):
-		var local := prop.global_transform.affine_inverse() * mesh.global_transform * mesh.get_aabb()
-		bounds = bounds.merge(local) if found else local
-		found = true
-	if found and bounds.size.y > 0.001:
-		var factor := height / bounds.size.y
-		var base := bounds.get_center() - Vector3(0, bounds.size.y * 0.5, 0)
-		prop.basis = Basis(Vector3.UP, yaw).scaled(Vector3.ONE * factor)
-		prop.position = at - prop.basis * base
-
-
-func _box(mat: Material, at: Vector3, size: Vector3, angles := Vector3.ZERO) -> void:
-	if not _batches.has(mat):
-		_batches[mat] = []
-	_batches[mat].append(Transform3D(Basis.from_euler(angles) * Basis.from_scale(size), at))
-
-
-func _flush_boxes() -> void:
-	for material: Material in _batches:
-		var box := BoxMesh.new()
-		box.size = Vector3.ONE
-		box.material = material
-		var batch := MultiMesh.new()
-		batch.transform_format = MultiMesh.TRANSFORM_3D
-		batch.mesh = box
-		var transforms: Array = _batches[material]
-		batch.instance_count = transforms.size()
-		for index in transforms.size():
-			batch.set_instance_transform(index, transforms[index])
-		var instance := MultiMeshInstance3D.new()
-		instance.multimesh = batch
-		add_child(instance)
-	_batches.clear()
-
-
-func _cylinder(parent: Node3D, at: Vector3, foot: float, top: float, height: float, material: Material) -> void:
-	var cylinder := CylinderMesh.new()
-	cylinder.bottom_radius = foot
-	cylinder.top_radius = top
-	cylinder.height = height
-	cylinder.radial_segments = 10
-	cylinder.rings = 0
-	_mesh(parent, cylinder, material, at)
-
-
-func _animated_material(shader: Shader) -> ShaderMaterial:
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	_moving_materials.append(material)
-	return material
-
-
-func _omni(at: Vector3, color: Color, energy: float, reach: float) -> OmniLight3D:
-	var lamp := OmniLight3D.new()
-	lamp.position = at
-	lamp.light_color = color
-	lamp.light_energy = energy
-	lamp.omni_range = reach
-	add_child(lamp)
-	return lamp
-
-
-func _mesh(parent: Node3D, mesh: Mesh, material: Material, at: Vector3) -> MeshInstance3D:
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.material_override = material
-	node.position = at
-	parent.add_child(node)
-	return node
-
-
-static func _paint(color: Color, roughness: float, metallic := 0.0) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = roughness
-	material.metallic = metallic
-	return material
-
-
-static func _glowing(color: Color, energy: float) -> StandardMaterial3D:
-	var material := _paint(color, 0.6)
-	material.emission_enabled = true
-	material.emission = color
-	material.emission_energy_multiplier = energy
-	return material

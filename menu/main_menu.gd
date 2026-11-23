@@ -3,6 +3,7 @@ extends Node3D
 const AlleyWorld := preload("res://menu/alley_world.gd")
 const MenuSign := preload("res://menu/menu_sign.gd")
 const GAME_SCENE := "res://sandbox/Sandbox.tscn"
+const INN_SCENE := "res://inn/Inn.tscn"
 const SETTINGS_FILE := "user://menu_settings.cfg"
 const GAME_ARGUMENTS := ["scenario", "encounter", "seed", "white", "black"]
 const MENU_FPS_CAP := 60
@@ -117,7 +118,7 @@ func _select(index: int) -> void:
 func _activate(index: int) -> void:
 	if not _settings_open:
 		if index == 0:
-			_open_game()
+			_open_game(INN_SCENE)
 		else:
 			_show_settings(0)
 		return
@@ -153,8 +154,8 @@ func _show_settings(focus: int) -> void:
 	_select(focus)
 
 
-func _open_game() -> void:
-	var error := get_tree().change_scene_to_file(GAME_SCENE)
+func _open_game(scene := GAME_SCENE) -> void:
+	var error := get_tree().change_scene_to_file(scene)
 	if error != OK:
 		_sign.set_entries(["Retry Play", "Settings"], [])
 		_select(0)
