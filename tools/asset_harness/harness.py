@@ -9,9 +9,11 @@ import urllib.request
 import urllib.error
 import uuid
 
+import harness_config
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-CONFIG = json.loads((HERE/'config.json').read_text())
+CONFIG = harness_config.load()
 COMFY = ROOT / CONFIG['comfy_portable'] / 'ComfyUI'
 
 def request(path, body=None):
@@ -25,18 +27,21 @@ def request(path, body=None):
         raise RuntimeError(e.read().decode()) from e
 
 def doctor():
-    stats = request('/system_stats')
-    schemas = request('/object_info')
-    from build_workflows import build
-    missing = sorted({n['class_type'] for n in build(True).values()} - schemas.keys())
-    from download_models import MODELS
-    absent = [name for _, name, _ in MODELS if not (COMFY/'models'/name).is_file()]
     report = {'blender': CONFIG['blender'], 'blender_exists': Path(CONFIG['blender']).is_file(),
-              'comfy': str(COMFY), 'endpoint': CONFIG['comfy_url'],
-              'version': stats['system']['comfyui_version'], 'devices': stats['devices'],
-              'missing_nodes': missing, 'missing_models': absent}
+              'comfy': str(COMFY), 'endpoint': CONFIG['comfy_url']}
+    try:
+        stats = request('/system_stats')
+        schemas = request('/object_info')
+        from build_workflows import build
+        missing = sorted({n['class_type'] for n in build(True).values()} - schemas.keys())
+        from download_models import MODELS
+        absent = [name for _, name, _ in MODELS if not (COMFY/'models'/name).is_file()]
+        report.update({'version': stats['system']['comfyui_version'], 'devices': stats['devices'],
+                       'missing_nodes': missing, 'missing_models': absent})
+    except (OSError, RuntimeError) as e:  # URLError is an OSError; Blender is still reported
+        report['comfy_error'] = str(e)
     print(json.dumps(report, indent=2))
-    if missing or absent or not report['blender_exists']:
+    if report.get('comfy_error') or report.get('missing_nodes') or report.get('missing_models') or not report['blender_exists']:
         raise RuntimeError('Harness dependencies are incomplete')
 
 def generate(args):

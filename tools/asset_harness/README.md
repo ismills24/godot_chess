@@ -5,10 +5,14 @@ custom ComfyUI node pack, or Blender add-on is required. This does not replace g
 
 ## Installed on this machine
 
-- Blender: `C:/Users/isaac/Documents/Blender/blender.exe` (verified 5.3.0).
+- Blender: 5.3.0, path set per machine (see below).
 - ComfyUI portable: `<repo>/.tools/ComfyUI_windows_portable` (pinned 0.46.0, Python 3.13, PyTorch 2.14.1 CUDA 13.0).
 - ComfyUI UI/API: `http://127.0.0.1:8188` (loopback only).
 - Paths and endpoint: `tools/asset_harness/config.json`.
+- Per-machine overrides: an optional, git-ignored `tools/asset_harness/config.local.json`
+  whose keys replace those in `config.json` (e.g. `{"blender": "C:/Program Files/Blender Foundation/Blender 5.3/blender.exe"}`).
+  A `BLENDER` environment variable overrides both. Priority: `BLENDER` > `config.local.json` > `config.json`.
+  `python tools/asset_harness/harness_config.py blender` prints the resolved path.
 - Weights: `<portable>/ComfyUI/models`; five SHA-256-verified safetensors files, approximately 9 GB.
 - Jobs, generated GLBs, logs and working Blender files: `artifacts/asset_harness/`.
 - The large tools/weights and outputs are ignored by Git and Godot. Keep source scripts/workflows in Git.
@@ -27,7 +31,7 @@ Do not stop an unrelated ComfyUI instance or cancel someone else's queued work.
 
 To reproduce the installation, run `install_portable.ps1`. It downloads a pinned official
 archive, checks its SHA-256, extracts it, then downloads and verifies the model files.
-It reuses the existing Blender path; update `config.json` on another machine.
+It reuses the existing Blender path; on another machine set it in `config.local.json`, not `config.json`.
 An existing archive/model with the wrong checksum causes an error, not silent replacement.
 The embedded Python at `<portable>/python_embeded/python.exe` can run these CLI scripts too.
 
@@ -63,7 +67,7 @@ appends only those meshes, keeps the architectural assemblies in source coordina
 and trims the prop meshes and textures for the runtime scene:
 
 ```powershell
-$blender = (Get-Content tools/asset_harness/config.json -Raw | ConvertFrom-Json).blender
+$blender = python tools/asset_harness/harness_config.py blender
 & $blender --background --factory-startup --disable-autoexec --threads 1 --python-exit-code 1 --python tools/asset_harness/export_menu_alley.py
 ```
 
@@ -132,7 +136,8 @@ art pass. Review silhouette, socket fit, detail loss, scale and shading before c
 For a geometry preview:
 
 ```powershell
-& 'C:/Users/isaac/Documents/Blender/blender.exe' --background --factory-startup --python tools/asset_harness/render_preview.py -- processed/asset.glb preview.png
+$blender = python tools/asset_harness/harness_config.py blender
+& $blender --background --factory-startup --python tools/asset_harness/render_preview.py -- processed/asset.glb preview.png
 ```
 
 ## Optional rigging
