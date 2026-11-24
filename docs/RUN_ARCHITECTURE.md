@@ -217,6 +217,8 @@ Loading restores a compatible checkpoint and replays the remaining commands. If 
 - [TurnTrace](../src/RogueChess.Engine/Resolution/Trace.cs) remains a derived battle-resolution explanation. The run command trace is a different abstraction and must not depend on human-readable trace text.
 - [Sandbox](../sandbox/Sandbox.cs) remains a debug client. Extract/reuse its battle presentation through the run session instead of making the sandbox the run orchestrator. [The menu](../menu/main_menu.gd) will launch or resume a run through a Godot host that survives encounter view changes.
 
+Presentation startup is separate from encounter simulation. `RunHost` requests scene resources for reachable encounters through Godot's threaded loader while the overworld is visible and retains loaded `PackedScene` resources for the host's lifetime. Entering first displays feedback, then waits without blocking for resources; node instantiation and `_Ready` still run on the main thread. A view-generation check discards superseded transitions. Loading failure offers a presentation retry without repeating the already-committed world command. Entry timings are logged separately from the run trace; GPU warmup and procedural scene construction require their own profiling.
+
 Suggested organization:
 
 ```text

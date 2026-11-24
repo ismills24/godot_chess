@@ -31,11 +31,17 @@ public partial class RunHost : Control
     private long _decisionStart;
     private CancellationTokenSource? _replayCancellation;
     private int _viewGeneration;
-    private readonly Dictionary<string, Func<Node>> _presentations = new(StringComparer.Ordinal)
+    private sealed record Presentation(string? ScenePath, Func<Node>? Create = null);
+    private readonly Dictionary<string, Presentation> _presentations = new(StringComparer.Ordinal)
     {
-        ["bartender"] = () => GD.Load<PackedScene>("res://inn/Inn.tscn").Instantiate(),
-        ["battle"] = () => new BattleEncounterView(),
+        ["bartender"] = new("res://inn/Inn.tscn"),
+        ["battle"] = new(null, () => new BattleEncounterView()),
     };
+    // Keep the PackedScene alive across visits; Godot's resource cache uses weak references.
+    // Only resources load on a worker. Instantiation and scene-tree work stay on the main thread.
+    private readonly Dictionary<string, PackedScene> _loadedScenes = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _loadingScenes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _sceneLoadErrors = new(StringComparer.Ordinal);
     public override void _Ready()
     {
         Active = this;
@@ -61,9 +67,31 @@ public partial class RunHost : Control
     }
     public override void _ExitTree()
     {
+        _viewGeneration++;
         _replayCancellation?.Cancel();
+        _loadedScenes.Clear();
         if (Active == this) Active = null;
         Input.SetDefaultCursorShape(Input.CursorShape.Arrow);
+    }
+    private async void RequestScene(string path)
+    {
+        if (_loadedScenes.ContainsKey(path) || _loadingScenes.Contains(path) || _sceneLoadErrors.ContainsKey(path)) return;
+        _loadingScenes.Add(path);
+        try
+        {
+            var error = ResourceLoader.LoadThreadedRequest(path, "PackedScene");
+            if (error != Error.Ok) throw new IOException($"Could not load encounter scene '{path}' ({error}).");
+            var tree = GetTree();
+            // Use the tree's lifetime: finish collecting an outstanding request even if the
+            // player leaves this host during preload. Never block _ExitTree waiting on I/O.
+            while (ResourceLoader.LoadThreadedGetStatus(path) == ResourceLoader.ThreadLoadStatus.InProgress)
+                await tree.ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+            var scene = ResourceLoader.LoadThreadedGet(path) as PackedScene;
+            if (scene == null) throw new IOException($"Could not load encounter scene '{path}'.");
+            if (IsInstanceValid(this) && IsInsideTree()) _loadedScenes[path] = scene;
+        }
+        catch (Exception e) { _sceneLoadErrors[path] = e.Message; }
+        finally { _loadingScenes.Remove(path); }
     }
     private void SetView(Node node)
     {
@@ -146,22 +174,63 @@ public partial class RunHost : Control
         _persistence.MarkLoaded(Session!.Sequence);
         ShowCurrent();
     }
-    private void ShowCurrent()
+    private async void ShowCurrent()
     {
-        if (Session?.State.Phase != RunPhase.Encounter) { ShowWorld(); return; }
-        var state = Session.State;
+        var state = Session?.State;
+        if (state?.Phase != RunPhase.Encounter) { ShowWorld(); return; }
         var encounter = state.Encounters.Single(e => e.Definition.Id == state.ActiveEncounterId);
-        if (!_presentations.TryGetValue(encounter.Definition.Kind, out var create))
-            throw new InvalidOperationException($"No view registered for encounter kind '{encounter.Definition.Kind}'.");
-        var view = create();
-        if (encounter.Definition.Kind == "bartender") view.Set("skip_intro", SkipEncounterIntro);
-        SetView(view);
+        var started = Stopwatch.GetTimestamp();
+        Page($"Entering {encounter.Definition.Name}...", "Preparing the encounter.");
+        int generation = _viewGeneration;
+        bool IsCurrent() => IsInstanceValid(this) && IsInsideTree() && generation == _viewGeneration;
+        string? path = null;
+        try
+        {
+            if (!_presentations.TryGetValue(encounter.Definition.Kind, out var presentation))
+                throw new InvalidOperationException($"No view registered for encounter kind '{encounter.Definition.Kind}'.");
+            path = presentation.ScenePath;
+            if (path != null) RequestScene(path);
+            // ProcessFrame fires before drawing. Two boundaries guarantee the feedback has
+            // rendered before synchronous instantiation/_Ready, even when called from input.
+            var tree = GetTree();
+            await ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+            if (!IsCurrent()) return;
+            await ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+            if (!IsCurrent()) return;
+            while (path != null && !_loadedScenes.ContainsKey(path))
+            {
+                if (_sceneLoadErrors.TryGetValue(path, out var error)) throw new IOException(error);
+                await ToSignal(tree, SceneTree.SignalName.ProcessFrame);
+                if (!IsCurrent()) return;
+            }
+            var loadedAt = Stopwatch.GetTimestamp();
+            var view = path != null ? _loadedScenes[path].Instantiate() : presentation.Create!();
+            if (encounter.Definition.Kind == "bartender") view.Set("skip_intro", SkipEncounterIntro);
+            SetView(view);
+            _decisionStart = Stopwatch.GetTimestamp();
+            GD.Print($"[Run] enter {encounter.Definition.Kind}: {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1} ms total, " +
+                $"{Stopwatch.GetElapsedTime(loadedAt).TotalMilliseconds:F1} ms instantiate/ready");
+        }
+        catch (Exception e)
+        {
+            if (!IsCurrent()) return;
+            var page = Page("Could not enter the encounter", e.Message);
+            // The world command was already committed. Retry presentation without recording it again.
+            Button(page, "Retry", () => { if (path != null) _sceneLoadErrors.Remove(path); ShowCurrent(); });
+            Button(page, "Save and return to menu", () => { if (SaveNow()) GetTree().ChangeSceneToFile("res://menu/MainMenu.tscn"); });
+            GD.PrintErr(e);
+        }
     }
     public void ShowWorld()
     {
         if (Session == null) { ShowLobby(); return; }
         var state = Session.State;
         if (state.Phase == RunPhase.Encounter) { ShowCurrent(); return; }
+        // Prepare only reachable encounters, not the whole map. Simulation is untouched.
+        foreach (var next in state.Encounters.Where(e => e.Status != EncounterStatus.Completed &&
+                     Math.Max(Math.Abs(state.X - e.Definition.X), Math.Abs(state.Y - e.Definition.Y)) == 1))
+            if (_presentations.TryGetValue(next.Definition.Kind, out var presentation) && presentation.ScenePath is { } path)
+                RequestScene(path);
         var page = Page("The district", state.Phase == RunPhase.Ended
             ? "The night's encounters are complete." : "Move one square in any direction. Capture an encounter to enter.");
         var row = new HBoxContainer();

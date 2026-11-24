@@ -23,7 +23,8 @@ public partial class VerifyRunFlow : Node
             host.NewRun(42);
             await Frames(3);
             Find<Button>(host, b => b.Name == "Square_2_1").EmitSignal(BaseButton.SignalName.Pressed);
-            await Frames(6);
+            Require(host.Session!.Sequence == 1, "Entering must commit before presentation finishes loading.");
+            await Until(() => FindOrNull<InnMatch>(host, null)?.IsPlayerTurn() == true);
             var match = Find<InnMatch>(host);
             Require(match.IsPlayerTurn(), "Bartender did not attach to the run.");
             Require(host.Session!.Sequence == 1, "Entering the inn must record one world command.");
@@ -44,7 +45,7 @@ public partial class VerifyRunFlow : Node
             host.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
             await Frames(3);
             Find<Button>(host, b => b.Text == "Continue saved run").EmitSignal(BaseButton.SignalName.Pressed);
-            await Frames(6);
+            await Until(() => FindOrNull<InnMatch>(host, null)?.IsPlayerTurn() == true);
             match = Find<InnMatch>(host);
             Require(match.IsPlayerTurn(), "Resumed inn is not accepting input.");
             Require(RunJson.Hash(host.Session!.State) == RunJson.Hash(loaded.State), "Godot resume changed the saved run.");
@@ -61,7 +62,19 @@ public partial class VerifyRunFlow : Node
             await Frames(6);
             Require(host.Session.State.ActiveEncounterId == "street-challenger", "Generic battle failed to launch.");
             Require(Find<BattleEncounterView>(host) != null, "Generic battle view missing.");
-            GD.Print("[RunFlow] PASS: world -> bartender -> move/AI -> undo -> save/load -> resume inn -> replay -> return -> street battle");
+            // A pending scene load must never replace a newer run/view or add trace commands.
+            host.NewRun(43);
+            Find<Button>(host, b => b.Name == "Square_2_1").EmitSignal(BaseButton.SignalName.Pressed);
+            host.NewRun(44);
+            await Frames(6);
+            Require(host.Session.Sequence == 0 && host.Session.State.Phase == RunPhase.Overworld,
+                "Superseded presentation load changed the new run.");
+            Require(FindOrNull<InnMatch>(host, null) == null, "Superseded encounter attached to the new run.");
+            Find<Button>(host, b => b.Name == "Square_2_1").EmitSignal(BaseButton.SignalName.Pressed);
+            GetTree().Root.RemoveChild(host);
+            host.QueueFree();
+            await Frames(6);
+            GD.Print("[RunFlow] PASS: world -> bartender -> move/AI -> undo -> save/load -> resume inn -> replay -> return -> street battle; superseded/closed transitions");
             GetTree().Quit();
         }
         catch (Exception e)
