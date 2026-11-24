@@ -12,5 +12,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="src/RogueChess.Engine/RogueChess.Engine.csproj" />
+    <ProjectReference Include="src/RogueChess.Runs/RogueChess.Runs.csproj" />
   </ItemGroup>
 </Project>

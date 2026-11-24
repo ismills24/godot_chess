@@ -17,7 +17,7 @@ namespace RogueChess.Engine.Core;
 /// Only the resolver and setup code change state. Content receives the read-only <see cref="IBoardView"/>.
 /// Squares are indexed <c>y * Width + x</c>; rank 0 is White's back rank.
 /// </summary>
-public sealed class GameState : IBoardView
+public sealed partial class GameState : IBoardView
 {
     private readonly Piece?[] _board;
     private readonly Tile[] _tiles;
