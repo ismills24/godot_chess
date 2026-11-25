@@ -10,7 +10,7 @@ namespace RogueChess.Runs;
 public sealed class RunSession
 {
     public const string SimulationVersion = "runs-v1";
-    public const string ContentVersion = "engine-content-v2";
+    public const string ContentVersion = "engine-content-v3";
     private readonly object _gate = new();
     private readonly EncounterRegistry _registry;
     private RunState _state;

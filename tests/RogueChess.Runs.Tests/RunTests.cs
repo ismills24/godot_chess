@@ -67,7 +67,7 @@ public class RunTests
         Assert.Equal(2, Battle(session).Position.History.Length);
         Assert.Equal(Hash(session), Hash(RunSession.Replay(session.Trace)));
         // Shared reference for the Windows/Linux CI matrix. A semantics change requires deliberate versioning.
-        Assert.Equal("9C7728967AB9238B8CCDFBEE295742AB4592A54EAEA9D87C967B78E53A820B57", Hash(session));
+        Assert.Equal("4E66D8F0CC056770D252B26B138456D9D166BC92771826D19731369E61756280", Hash(session));
     }
     [Fact] public void Illegal_stale_and_wrong_context_commands_do_not_change_state_or_history()
     {
