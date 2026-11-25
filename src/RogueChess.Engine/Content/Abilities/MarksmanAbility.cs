@@ -54,7 +54,7 @@ public sealed class MarksmanAbility : AbilityDef
     {
         // Like casts, a shot that wouldn't be offered (no valid target) proposes nothing, so it is rejected
         // instead of spending a charge or hitting a piece the marksman can't reach.
-        if (self.Var(ChargesVar) <= 0 || (uint)action.To >= (uint)board.Area || !CanShoot(board, piece, action.To)) return;
+        if (self.Var(ChargesVar) <= 0 || piece.HasAbility(CannibalAbility.Instance) || (uint)action.To >= (uint)board.Area || !CanShoot(board, piece, action.To)) return;
         into.Add(Proposal.Destroy(board.PieceAt(action.To)!, Causes.Ranged));
         into.Add(Proposal.AddVar(VarTarget.OfAbility(piece, this), ChargesVar, -1, ShotCause));
     }
