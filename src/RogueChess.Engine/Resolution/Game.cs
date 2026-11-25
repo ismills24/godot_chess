@@ -96,6 +96,18 @@ public static class Game
     /// </summary>
     private static void BuildActionProposals(GameState s, Move m, Piece mover, List<Proposal> into)
     {
+        if (m.Is(MoveFlags.Ability))
+        {
+            // An ability's own action (ranged attack...): the ability builds the proposals and is their source.
+            if (m.Aux < 0 || m.Aux >= mover.Abilities.Count) return;
+            var ability = mover.Abilities[m.Aux];
+            var abilitySource = SourceRef.ForPiece(mover, m.Aux, mover.Square);
+            int first = into.Count;
+            ability.Def.ProposeAction(s, mover, ability, m, into);
+            for (int i = first; i < into.Count; i++) into[i] = into[i] with { Source = abilitySource };
+            return;
+        }
+
         var source = SourceRef.ForPiece(mover, -1, mover.Square);
 
         if (m.Is(MoveFlags.EnPassant))

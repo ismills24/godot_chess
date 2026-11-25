@@ -19,6 +19,9 @@ public static class ContentLibrary
             .AddAbility(PhantomAbility.Instance, "Phantom")
             .AddAbility(PredatorAbility.Instance, "Predator")
             .AddAbility(FrozenAbility.Instance, "Frozen")
+            .AddAbility(PiercingAbility.Instance, "Piercing")
+            .AddAbility(BouncerAbility.Instance, "Bouncer")
+            .AddAbility(MarksmanAbility.Instance, "Marksman")
             // tiles
             .AddTile(WallTile.Instance, "WallTile")
             .AddTile(GuardianTile.Instance, "GuardianTile")

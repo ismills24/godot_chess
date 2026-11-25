@@ -289,8 +289,11 @@ public partial class Sandbox : Control
     {
         if (_board.Selected >= 0 && (_board.QuietTargets.Contains(sq) || _board.CaptureTargets.Contains(sq)))
         {
-            // Promotion: the first option (a queen in both rule sets).
-            var move = _legal.First(m => m.From == _board.Selected && m.To == sq);
+            // Promotion: the first option (a queen in both rule sets). Shift-click picks an ability action
+            // (e.g. a Marksman's ranged shot) over the plain move to the same square, when there is one.
+            bool ability = Input.IsKeyPressed(Key.Shift);
+            var move = _legal.Where(m => m.From == _board.Selected && m.To == sq)
+                .OrderBy(m => m.Is(MoveFlags.Ability) == ability ? 0 : 1).First();
             PlayMove(move);
             return;
         }

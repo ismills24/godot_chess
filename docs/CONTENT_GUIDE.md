@@ -110,6 +110,10 @@ You don't handle conflicts yourself. If two modifiers claim the same proposal, t
 
 Override `ModifyMoves(board, piece, self, moves, firstIndex)`: add, remove or rewrite the piece's moves from `firstIndex` on. See `PhantomAbility` (adds slides through allies). The engine still resolves each resulting move through the normal pipeline.
 
+## Recipe 4b: an ability with its own action (ranged attack)
+
+An ability can offer an action that isn't a plain move: add a `Move` with `MoveFlags.Ability` (plus `Capture` if it takes the piece on `To`) and `Aux` = the ability's index on the piece (`piece.AbilityIndex(this)`), then override `ProposeAction(board, piece, self, action, into)` to turn it into wave-0 proposals. The engine stamps them with the ability as their source, so kills are credited to the piece. The action is offered beside the normal moves (written `a1a4@marksman`), so the player and the AI choose between them. See `MarksmanAbility` (destroy the target + spend a charge).
+
 ## Recipe 5: an ability with state
 
 Declare variables and change them only through proposals. Use `VarChanged` to react to the new value (see `PredatorAbility`):

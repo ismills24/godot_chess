@@ -60,12 +60,12 @@ public class MapLoaderTests
             }
         }
 
-        Assert.Equal(11, loaded);
+        Assert.Equal(15, loaded);
         Assert.Equal(new SortedSet<string>
         {
             // abilities
-            "Bouncer", "Cannibal", "FireMage", "FreezeMage", "Marksman", "OnFire",
-            "Piercing", "Revenant", "WallPlacement",
+            "Cannibal", "FireMage", "FreezeMage", "OnFire",
+            "Revenant", "WallPlacement",
             // tiles
             "FireTile", "FreezeTile", "SlipperyTile",
         }, unknown);

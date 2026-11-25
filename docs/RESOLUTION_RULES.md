@@ -136,7 +136,7 @@ An action becomes ordinary proposals. There are no special compound events.
 | Cast (e.g. FireMage) | `ChangeTile(target, def)` (+ cost vars) |
 | Use consumable | Whatever the consumable's definition returns |
 
-Ranged attacks and melee captures are **separate actions**, so the player always chooses between them. This fixes the TS Marksman bug. (M2 implements the move actions: quiet moves, captures, en passant, castling as two simultaneous moves, and promotion. Ranged, cast and consumable actions arrive with their content in M3.)
+Ranged attacks and melee captures are **separate actions**, so the player always chooses between them. This fixes the TS Marksman bug. (M2 implements the move actions: quiet moves, captures, en passant, castling as two simultaneous moves, and promotion. Ranged, cast and consumable actions arrive with their content in M3.) Ranged attacks are ability actions: a `Move` flagged `MoveFlags.Ability` whose `Aux` names the ability, which builds the proposals in `AbilityDef.ProposeAction` (Marksman).
 
 **Promotion** is a built-in rule trigger: when a pawn-tagged piece's `Moved` fact ends on its far rank, the rules propose `ChangeDef` to the option the player picked (or the first option for a move the player didn't make directly, such as a slide or a push). If the pawn's move is blocked, nothing promotes.
 
