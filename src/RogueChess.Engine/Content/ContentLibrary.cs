@@ -1,5 +1,7 @@
 using RogueChess.Engine.Content.Abilities;
 using RogueChess.Engine.Content.BoardEffects;
+using RogueChess.Engine.Content.Consumables;
+using RogueChess.Engine.Content.Relics;
 using RogueChess.Engine.Content.Tiles;
 
 namespace RogueChess.Engine.Content;
@@ -28,6 +30,7 @@ public static class ContentLibrary
             .AddAbility(MarksmanAbility.Instance, "Marksman")
             .AddAbility(RevenantAbility.Instance, "Revenant")
             .AddAbility(CannibalAbility.Instance, "Cannibal")
+            .AddAbility(ChronoCaptureAbility.Instance, "ChronoCapture")
             // tiles
             .AddTile(WallTile.Instance, "WallTile")
             .AddTile(GuardianTile.Instance, "GuardianTile")
@@ -36,6 +39,11 @@ public static class ContentLibrary
             .AddTile(FreezeTile.Instance, "FreezeTile")
             .AddTile(SlipperyTile.Instance, "SlipperyTile")
             .AddTile(TombTile.Instance, "TombTile")
+            // relics (built per owner) and consumables, under the prototype's ids
+            .AddRelic("time-bank", TimeBankRelic.For, "TimeBankRelic")
+            .AddRelic("royal-promotion", RoyalPromotionRelic.For, "RoyalPromotionRelic")
+            .AddConsumable(ExtraTurnPotion.Instance, "ExtraTurnPotion")
+            .AddConsumable(FortifyPotion.Instance, "FortifyPotion")
             // board effects (WallsPlacement, WindGust, CheckerboardWipe) and their conditions
             .AddBoardEffects();
     }

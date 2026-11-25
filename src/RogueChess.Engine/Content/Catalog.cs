@@ -18,6 +18,8 @@ public sealed class Catalog
     private readonly Dictionary<string, TileDef> _tiles = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, AbilityDef> _abilities = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, BoardEffectFactory> _boardEffects = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Func<Core.Side, RelicDef>> _relics = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ConsumableDef> _consumables = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The standard pieces and the standard tile, under both their def ids and the prototype's names.</summary>
     public static Catalog CreateStandard()
@@ -39,15 +41,23 @@ public sealed class Catalog
         return this;
     }
 
+    /// <summary>Register a relic under its id and aliases (e.g. "TimeBankRelic"). Relics are built per owner.</summary>
+    public Catalog AddRelic(string id, Func<Core.Side, RelicDef> factory, params string[] aliases) => Add(_relics, factory, id, aliases);
+
+    public Catalog AddConsumable(ConsumableDef def, params string[] aliases) => Add(_consumables, def, def.Id, aliases);
+
     /// <summary>Every registered def once (aliases collapsed), in registration order. For palettes and pickers.</summary>
     public IReadOnlyList<PieceDef> Pieces => _pieces.Values.Distinct().ToList();
     public IReadOnlyList<TileDef> Tiles => _tiles.Values.Distinct().ToList();
     public IReadOnlyList<AbilityDef> Abilities => _abilities.Values.Distinct().ToList();
+    public IReadOnlyList<ConsumableDef> Consumables => _consumables.Values.Distinct().ToList();
 
     public PieceDef? FindPiece(string id) => _pieces.GetValueOrDefault(id);
     public TileDef? FindTile(string id) => _tiles.GetValueOrDefault(id);
     public AbilityDef? FindAbility(string id) => _abilities.GetValueOrDefault(id);
     public BoardEffectFactory? FindBoardEffect(string type) => _boardEffects.GetValueOrDefault(type);
+    public Func<Core.Side, RelicDef>? FindRelic(string id) => _relics.GetValueOrDefault(id);
+    public ConsumableDef? FindConsumable(string id) => _consumables.GetValueOrDefault(id);
 
     private Catalog Add<T>(Dictionary<string, T> map, T def, string id, string[] aliases)
     {
