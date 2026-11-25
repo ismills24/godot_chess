@@ -198,7 +198,7 @@ public static class Game
             if (s.PieceAt(m.To) is { } target) into.Add(Proposal.Destroy(target, Causes.Capture) with { Source = source });
         }
 
-        into.Add(Proposal.Move(mover, m.To, Causes.Action) with { Source = source });
+        into.Add(Proposal.Move(mover, m.To, Causes.Action) with { Source = source, Jump = m.Is(MoveFlags.Jump) });
 
         if (m.Is(MoveFlags.Castle) && s.PieceAt(m.Aux) is { } partner)
         {

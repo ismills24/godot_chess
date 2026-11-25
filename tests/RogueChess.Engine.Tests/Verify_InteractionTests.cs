@@ -131,7 +131,7 @@ public class Verify_InteractionTests
     }
 
     [Fact]
-    public void Scapegoat_dies_in_place_of_a_ranged_target_and_the_charge_is_spent()
+    public void Scapegoat_dies_in_place_of_a_ranged_target_and_the_shooter_gets_the_kill()
     {
         var s = Rogue("4k3/1p6/n7/8/8/8/8/R3K3 w - - 0 1");
         Grant(s, "a1", MarksmanAbility.Instance, ChronoCaptureAbility.Instance);
@@ -144,7 +144,35 @@ public class Verify_InteractionTests
         Assert.Same(knight, At(s, "a6"));
         Assert.Null(At(s, "b7"));
         Assert.Equal(0, Charges(Must(s, "a1")));
-        // A Scapegoat's sacrifice is its own death, not a kill (RESOLUTION_RULES §6), so ChronoCapture earns nothing.
+        // The shot still killed a piece, so the marksman is credited with the Scapegoat (ChronoCapture pays).
+        Assert.Equal(ChronoCaptureAbility.BonusMs, s.ClockMs(Side.White));
+    }
+
+    [Fact]
+    public void Scapegoat_taking_a_ranged_shot_feeds_a_predator_marksman()
+    {
+        var s = Rogue("4k3/1p6/n7/8/8/8/8/R3K3 w - - 0 1");
+        Grant(s, "a1", MarksmanAbility.Instance, PredatorAbility.Instance);
+        Grant(s, "b7", ScapegoatAbility.Instance);
+        s.ClearHistory();
+
+        Play(s, "a1a6@marksman");
+
+        Assert.Null(At(s, "b7"));
+        Assert.Same(StandardPieces.Queen, Must(s, "a1").Def); // one kill: Rook -> Queen
+    }
+
+    [Fact]
+    public void Scapegoat_saving_a_piece_from_a_melee_capture_still_gives_no_kill_credit()
+    {
+        var s = Rogue("4k3/1p6/n7/8/8/8/8/R3K3 w - - 0 1");
+        Grant(s, "a1", ChronoCaptureAbility.Instance);
+        Grant(s, "b7", ScapegoatAbility.Instance);
+        s.ClearHistory();
+
+        Play(s, "a1a6");
+
+        Assert.Null(At(s, "b7"));
         Assert.Equal(0, s.ClockMs(Side.White));
     }
 
@@ -217,7 +245,7 @@ public class Verify_InteractionTests
     }
 
     [Fact]
-    public void Piercing_landing_on_slippery_slides_on()
+    public void Piercing_jumping_onto_slippery_does_not_slide()
     {
         var s = Rogue("4k3/8/8/8/n7/8/8/R3K3 w - - 0 1");
         Grant(s, "a1", PiercingAbility.Instance);
@@ -227,9 +255,9 @@ public class Verify_InteractionTests
 
         Play(s, "a1a4");
 
-        Assert.Same(rook, At(s, "a6"));
+        Assert.Same(rook, At(s, "a5")); // the jump over the knight is a jump: no slide
         Assert.NotNull(At(s, "a4"));
-        Assert.Null(At(s, "a5"));
+        Assert.Null(At(s, "a6"));
     }
 
     [Fact]

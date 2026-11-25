@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using RogueChess.Engine.Core;
 
@@ -44,7 +45,7 @@ public sealed class CannibalAbility : AbilityDef
                     foreach (var (dx, dy) in slide.Directions) AddSlideCapture(board, piece, slide.MaxRange, dx, dy, moves);
                     break;
                 case Leap leap:
-                    foreach (var (dx, dy) in leap.Offsets) AddCapture(board, piece, dx, dy, moves, promote: false);
+                    foreach (var (dx, dy) in leap.Offsets) AddCapture(board, piece, dx, dy, moves, promote: false, jump: Math.Max(Math.Abs(dx), Math.Abs(dy)) > 1);
                     break;
                 case PawnMovement:
                     int dir = piece.Side.Forward();
@@ -73,16 +74,16 @@ public sealed class CannibalAbility : AbilityDef
         }
     }
 
-    private static void AddCapture(IBoardView board, Piece piece, int dx, int dy, List<Move> moves, bool promote)
+    private static void AddCapture(IBoardView board, Piece piece, int dx, int dy, List<Move> moves, bool promote, bool jump = false)
     {
         int x = board.FileOf(piece.Square) + dx, y = board.RankOf(piece.Square) + dy;
         if (!board.InBounds(x, y)) return;
         int sq = board.Sq(x, y);
         if (board.PieceAt(sq) is { } occupant && occupant.Side == piece.Side)
-            AddIfCapturable(board, piece, sq, moves, promote);
+            AddIfCapturable(board, piece, sq, moves, promote, jump);
     }
 
-    private static void AddIfCapturable(IBoardView board, Piece piece, int sq, List<Move> moves, bool promote)
+    private static void AddIfCapturable(IBoardView board, Piece piece, int sq, List<Move> moves, bool promote, bool jump = false)
     {
         var tile = board.TileAt(sq).Def;
         if (tile.BlocksLanding || tile.BlocksCapture) return;
@@ -98,7 +99,7 @@ public sealed class CannibalAbility : AbilityDef
         }
         else
         {
-            moves.Add(new Move(piece.Square, sq, MoveFlags.Capture));
+            moves.Add(new Move(piece.Square, sq, MoveFlags.Capture | (jump ? MoveFlags.Jump : MoveFlags.None)));
         }
     }
 }

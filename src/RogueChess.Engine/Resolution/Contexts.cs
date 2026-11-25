@@ -77,6 +77,17 @@ public sealed class ModifierContext
     public void Claim(int index, params Proposal[] replacements) => Claim(new[] { index }, replacements);
 
     /// <summary>
+    /// Claim one proposal and replace it with <paramref name="replacement"/>, which keeps the claimed proposal's
+    /// source instead of taking this modifier's. Use it when the original source should still get the credit,
+    /// e.g. a Scapegoat dying in place of a ranged shot's target: the kill is the shooter's.
+    /// </summary>
+    public void ClaimKeepingSource(int index, Proposal replacement)
+    {
+        if (index < 0 || index >= Batch.Count) throw new ArgumentOutOfRangeException(nameof(index), $"No proposal {index} in this batch.");
+        _claims.Add(new Claim(Layer, Self, new[] { index }, new[] { replacement with { Source = Batch[index].Source } }, _claims.Count));
+    }
+
+    /// <summary>
     /// Claim several proposals together (all or nothing) and replace them with <paramref name="replacements"/>.
     /// A proposal can be rewritten by at most one modifier per layer; contested claims go to the source
     /// first in canonical order, measured from the first claimed proposal's square.

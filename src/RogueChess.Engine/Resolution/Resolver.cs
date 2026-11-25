@@ -471,7 +471,7 @@ internal sealed class Resolver
             {
                 s.PutPiece(m.Piece, m.To);
                 s.SetMovesMade(m.Piece, m.Piece.MovesMade + 1);
-                _newFacts.Add(new Fact(FactKinds.Moved) { Piece = m.Piece, From = m.From, To = m.To, Source = prop.Source, Cause = prop.Cause });
+                _newFacts.Add(new Fact(FactKinds.Moved) { Piece = m.Piece, From = m.From, To = m.To, Source = prop.Source, Cause = prop.Cause, Jump = prop.Jump });
             }
             else
             {

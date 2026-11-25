@@ -40,7 +40,7 @@ public sealed class PiercingAbility : AbilityDef
         var occupant = board.PieceAt(landing);
         if (occupant != null && (occupant.Side == self.Side || tile.BlocksCapture)) return;
 
-        var jump = Proposal.Move(self, landing, Causes.Action);
+        var jump = Proposal.Move(self, landing, Causes.Action) with { Jump = true };
         if (occupant == null) ctx.Claim(new[] { destroy, move }, jump);
         else ctx.Claim(new[] { destroy, move }, Proposal.Destroy(occupant, Causes.Capture), jump);
     }

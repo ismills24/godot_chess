@@ -311,15 +311,14 @@ public class Verify_DeathMovementRunTests
     }
 
     [Fact]
-    public void A_knight_jumping_two_files_slides_one_more_file_and_stops_at_pieces()
+    public void A_knight_jumping_two_files_onto_ice_stays_put()
     {
         var s = Rogue("7k/8/8/8/8/8/8/1N5K w - - 0 1");
         s.SetTile(Sq(s, "d2"), SlipperyTile.Instance);
-        s.Place(StandardPieces.Pawn, Side.Black, Sq(s, "e2"));
         s.ClearHistory();
         Step(s, "b1d2");
-        Assert.Equal("knight", Must(s, "d2").Def.Id); // e2 occupied: stays on the ice, no capture
-        Assert.Equal("pawn", Must(s, "e2").Def.Id);
+        Assert.Equal("knight", Must(s, "d2").Def.Id); // a jump doesn't slide, even with e2 free
+        Assert.Null(At(s, "e2"));
     }
 
     [Fact]

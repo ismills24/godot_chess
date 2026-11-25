@@ -28,6 +28,9 @@ public readonly record struct Fact(FactKinds Kind)
     public int To { get; init; } = -1;
     public SourceRef Source { get; init; }
     public string Cause { get; init; } = "";
+
+    /// <summary>Moved only: the move was a jump, not a slide or step (see <see cref="Proposal.Jump"/>).</summary>
+    public bool Jump { get; init; }
     public Side Side { get; init; }
     public PieceDef? OldDef { get; init; }
     public PieceDef? NewDef { get; init; }

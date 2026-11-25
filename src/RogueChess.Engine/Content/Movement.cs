@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using RogueChess.Engine.Core;
 
@@ -114,8 +115,9 @@ public sealed class Leap : Movement
             int sq = s.Sq(x, y);
             if (!CanLandOn(s, sq)) continue;
             var occupant = s.PieceAt(sq);
-            if (occupant == null) moves.Add(new Move(p.Square, sq));
-            else if (occupant.Side != p.Side && CanCaptureOn(s, sq)) moves.Add(new Move(p.Square, sq, MoveFlags.Capture));
+            var jump = Math.Max(Math.Abs(dx), Math.Abs(dy)) > 1 ? MoveFlags.Jump : MoveFlags.None;
+            if (occupant == null) moves.Add(new Move(p.Square, sq, jump));
+            else if (occupant.Side != p.Side && CanCaptureOn(s, sq)) moves.Add(new Move(p.Square, sq, MoveFlags.Capture | jump));
         }
     }
 

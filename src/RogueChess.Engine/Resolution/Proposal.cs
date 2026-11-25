@@ -50,6 +50,9 @@ public readonly record struct Proposal(ProposalKind Kind)
     public string Cause { get; init; } = "";
     public SourceRef Source { get; init; }
 
+    /// <summary>Move only: the piece jumps (a knight's L, Piercing's leap over its target) rather than slides.</summary>
+    public bool Jump { get; init; }
+
     public static Proposal Destroy(Piece target, string cause)
         => new(ProposalKind.Destroy) { PieceId = target.Id, Cause = cause };
 

@@ -117,7 +117,7 @@ If any facts were produced, the next wave starts. Otherwise the resolution is ov
 
 | Proposal | Merge / conflict rule |
 |---|---|
-| `Destroy(piece, source, cause)` | **Set semantics.** Several destroys of the same piece merge into one death. Every distinct source gets a `Killed(source, victim)` fact, so each one gets credit (ChronoCapture, Predator). A piece never gets credit for its own death (a Scapegoat's sacrifice is a death with no kill). |
+| `Destroy(piece, source, cause)` | **Set semantics.** Several destroys of the same piece merge into one death. Every distinct source gets a `Killed(source, victim)` fact, so each one gets credit (ChronoCapture, Predator). A piece never gets credit for its own death (a Scapegoat's sacrifice is a death with no kill), except that a Scapegoat dying in place of a ranged shot's target keeps the shot's source, so the shooter is credited. |
 | `Move(piece, to, cause)` | Resolved **like sliding blocks**, against the squares as they will be after this wave's removals: a move succeeds if its destination is empty, or its occupant is being destroyed or successfully moving away this wave. Two moves to the same square: both blocked. A move into a piece that stays put: blocked. Head-on swaps (A→B's square while B→A's square): blocked. Rotations of 3 or more pieces: allowed. Each blocked move produces `Collided(mover, blocker or other mover)`. A piece that is both destroyed and moved: the destroy wins and the move is dropped. |
 | `Spawn(def, side, square)` / `Revive(piece, square)` | Allowed only if the square is empty after moves and can be landed on. Two spawns on one square: canonical order picks one; the rest are dropped. A revive brings back the same piece (same id, def and abilities). |
 | `ChangeDef`, `AddAbility`, `RemoveAbility` | Applied only if the piece is on the board at the end of the wave: a piece destroyed this wave is not changed, a piece revived this wave is (Tomb removes a revive-once Revenant this way). Adding an ability twice, or re-adding one the piece already has, merges: each variable keeps the larger value (a refreshed status keeps the longer duration). Add and remove of the same ability in one wave: remove wins. Two different def swaps: canonical order picks one. |
@@ -222,7 +222,7 @@ The sandbox shows it, and the Godot layer animates from it: one wave per beat, e
 | Scapegoat, Guardian, Fog | Modifier | Prevent |
 | Piercing, Bouncer | Modifier | Redirect (own capture proposals only) |
 | Fire, Freeze tiles | Trigger | `Moved`/`Spawned` onto this square, `TurnEnded` |
-| Slippery tile | Trigger | `Moved` onto this square → `Move` one more step in the direction travelled (unit step of the move; a knight's L uses its longer leg). No slide into pieces, walls, landing-blocked squares or off the board |
+| Slippery tile | Trigger | `Moved` onto this square → `Move` one more step in the direction travelled (unit step of the move). Jumps (`Moved` with `Jump`: a knight's L, Piercing's leap) don't slide; single steps and pushes do. No slide into pieces, walls, landing-blocked squares or off the board |
 | Wall tile | Trigger | `Moved` onto this square → `ChangeTile(standard)` |
 | Tomb tile | Modifier | Prevent: an ally's `Move` onto the empty tomb (including a Bouncer knock or Piercing jump made in the redirect layer) → `Revive` the entombed piece + `ChangeTile(standard)`; the ally stays put |
 | OnFire, Frozen | Trigger | `TurnEnded` → `AddVar(turnsLeft, -1)`; `VarChanged` to 0 → remove or destroy |

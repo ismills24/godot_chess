@@ -3,7 +3,7 @@ using System;
 namespace RogueChess.Engine.Core;
 
 [Flags]
-public enum MoveFlags : byte
+public enum MoveFlags : ushort
 {
     None = 0,
     Capture = 1,
@@ -33,6 +33,12 @@ public enum MoveFlags : byte
     /// same side moves again afterwards.
     /// </summary>
     UseConsumable = 128,
+
+    /// <summary>
+    /// A jump: a leap of more than one square (a knight's L), passing over whatever is between. Single steps
+    /// (king, pawn) and slides are not jumps. Slippery tiles only react to moves that aren't jumps.
+    /// </summary>
+    Jump = 256,
 }
 
 /// <summary>

@@ -375,15 +375,26 @@ public class DeathAndMovementTests
         Assert.Equal((1, 0), SlipperyTile.SlideStep(s, Sq(s, "b1"), Sq(s, "d2")));
         Assert.Equal((-1, -1), SlipperyTile.SlideStep(s, Sq(s, "h8"), Sq(s, "a1")));
 
+    }
+
+    [Fact]
+    public void A_knight_jumping_onto_slippery_does_not_slide()
+    {
+        var s = Rogue("7k/8/8/8/8/8/8/1N5K w - - 0 1");
         Tile(s, SlipperyTile.Instance, "c3");
         Play(s, "b1c3");
-        Assert.Equal("knight", Must(s, "c4").Def.Id); // the prototype sent it to d4
-        Assert.Null(At(s, "d4"));
+        Assert.Equal("knight", Must(s, "c3").Def.Id); // only sliding movement triggers ice
+        Assert.Null(At(s, "c4"));
+    }
 
-        var t = Rogue("7k/8/8/8/8/8/8/1N5K w - - 0 1");
-        Tile(t, SlipperyTile.Instance, "d2");
-        Play(t, "b1d2");
-        Assert.Equal("knight", Must(t, "e2").Def.Id);
+    [Fact]
+    public void A_king_stepping_onto_slippery_slides_one_more_square()
+    {
+        var s = Rogue("7k/8/8/8/8/8/8/1K6 w - - 0 1");
+        Tile(s, SlipperyTile.Instance, "b2");
+        Play(s, "b1b2");
+        Assert.Equal("king", Must(s, "b3").Def.Id);
+        Assert.Null(At(s, "b2"));
     }
 
     [Fact]

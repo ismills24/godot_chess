@@ -18,7 +18,8 @@ namespace RogueChess.Engine.Content.Abilities;
 /// <item>Targets are the enemies the piece's own movement could capture (its def's movement, not moves other
 /// abilities add), so the result doesn't depend on the order of its abilities. Pieces in fog can't be targeted.</item>
 /// <item>The shot is not a move capture (<see cref="Causes.Ranged"/>): a Guardian tile doesn't stop it, like an
-/// explosion. A Scapegoat still dies in the target's place; the charge is spent either way.</item>
+/// explosion. A Scapegoat still dies in the target's place; the charge is spent and the marksman is credited with
+/// the Scapegoat's death (ChronoCapture, Predator).</item>
 /// <item>The kill is credited to the marksman piece (Predator evolves; ChronoCapture can count it, fixing B3).</item>
 /// <item>A frozen marksman can't shoot (it has no actions at all).</item>
 /// <item>A <see cref="CannibalAbility"/> marksman can't shoot: its movement can't take enemies, so it has nothing to

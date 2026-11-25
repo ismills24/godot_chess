@@ -6,12 +6,13 @@ namespace RogueChess.Engine.Content.Tiles;
 
 /// <summary>
 /// Slippery: a piece that moves onto this tile slides one more square in the direction it was moving, in the
-/// next wave. Any move counts (the player's move, a push, another slide).
+/// next wave. Any move counts (the player's move, a push, another slide) except a jump (<see cref="MoveFlags.Jump"/>:
+/// a knight's L, Piercing's leap over its target), which just lands. Single steps (king, pawn) do slide.
 ///
 /// <para>Direction (B6): the unit step of the move, i.e. the sign of each axis for straight and diagonal moves
-/// (sliders, king, pawn). For a move that is neither (a knight's L), it is the unit step along the
-/// <b>longer leg</b>: a knight going two up and one right slides one more square up. The prototype took the
-/// sign of both axes, which sent knights off diagonally.</para>
+/// (sliders, king, pawn, pushes). Knights' L moves are jumps and don't slide at all. For any other non-line move
+/// that isn't a jump, <see cref="SlideStep"/> takes the unit step along the longer leg rather than the prototype's
+/// diagonal sign of both axes.</para>
 ///
 /// <para>Blocked slides, as in the prototype: if the next square is off the board or occupied, the piece simply
 /// stays on the slippery tile. A slide never captures. Unlike the prototype it also respects tiles: it doesn't
@@ -45,6 +46,7 @@ public sealed class SlipperyTile : TileDef
         int sq = ctx.SelfSquare;
         var piece = fact.Piece;
         if (fact.To != sq || piece == null || piece.Square != sq) return;
+        if (fact.Jump) return; // only sliding movement slides on ice; a jump just lands
 
         var board = ctx.Board;
         var (dx, dy) = SlideStep(board, fact.From, fact.To);

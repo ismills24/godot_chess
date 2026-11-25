@@ -14,6 +14,8 @@ namespace RogueChess.Engine.Content.Abilities;
 /// <item>A Scapegoat that is itself being destroyed this wave still protects its neighbours (it reads the snapshot).</item>
 /// <item>If two Scapegoats could save the same ally, the one first in canonical order does (closest, then clockwise from north).</item>
 /// <item>When it saves an ally from a capture, the attacker's move is blocked and the attacker stays where it was.</item>
+/// <item>No kill credit for its death, except against a Marksman's ranged shot: the shooter is credited with the
+/// Scapegoat (ChronoCapture, Predator) and its charge is spent.</item>
 /// </list>
 /// </summary>
 public sealed class ScapegoatAbility : AbilityDef
@@ -37,8 +39,11 @@ public sealed class ScapegoatAbility : AbilityDef
 
             int dx = Math.Abs(board.FileOf(target.Square) - board.FileOf(ctx.SelfSquare));
             int dy = Math.Abs(board.RankOf(target.Square) - board.RankOf(ctx.SelfSquare));
-            if (Math.Max(dx, dy) == 1)
-                ctx.Claim(i, Proposal.Destroy(self, Causes.Scapegoat));
+            if (Math.Max(dx, dy) != 1) continue;
+            // A ranged shot still kills a piece, so the shooter keeps the credit (and has spent its charge).
+            // Anything else is the Scapegoat's own sacrifice, with no kill credit.
+            if (p.Cause == Causes.Ranged) ctx.ClaimKeepingSource(i, Proposal.Destroy(self, Causes.Scapegoat));
+            else ctx.Claim(i, Proposal.Destroy(self, Causes.Scapegoat));
         }
     }
 }
