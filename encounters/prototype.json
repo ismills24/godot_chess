@@ -5,7 +5,7 @@
   "player": {
     "pieceValue": 10,
     "minimumPawns": 2,
-    // The prototype's STARTING_PLAYER_ABILITIES. FireMage, FreezeMage, WallPlacement, Marksman, Revenant and
+    // The prototype's STARTING_PLAYER_ABILITIES. FireMage, FreezeMage, WallPlacement, Marksman and
     // ChronoCapture are not ported yet and are skipped until they are.
     "startingAbilities": ["Exploding", "Phantom", "Predator", "FireMage", "FreezeMage", "WallPlacement", "Marksman", "Revenant", "ChronoCapture"]
   },

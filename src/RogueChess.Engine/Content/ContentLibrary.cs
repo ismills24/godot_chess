@@ -19,10 +19,14 @@ public static class ContentLibrary
             .AddAbility(PhantomAbility.Instance, "Phantom")
             .AddAbility(PredatorAbility.Instance, "Predator")
             .AddAbility(FrozenAbility.Instance, "Frozen")
+            .AddAbility(RevenantAbility.Instance, "Revenant")
+            .AddAbility(CannibalAbility.Instance, "Cannibal")
             // tiles
             .AddTile(WallTile.Instance, "WallTile")
             .AddTile(GuardianTile.Instance, "GuardianTile")
             .AddTile(FogTile.Instance, "FogTile")
+            .AddTile(SlipperyTile.Instance, "SlipperyTile")
+            .AddTile(TombTile.Instance, "TombTile")
             // board effects (WallsPlacement, WindGust, CheckerboardWipe) and their conditions
             .AddBoardEffects();
     }

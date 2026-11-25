@@ -367,8 +367,10 @@ internal sealed class Resolver
                 }
                 case ProposalKind.ChangeDef:
                 {
+                    // Off-board pieces are kept here so a piece revived this wave can be changed in the same
+                    // wave (Tomb strips Revenant). The commit below applies changes only to pieces on the board.
                     var piece = s.GetPiece(p.PieceId);
-                    if (piece == null || !piece.IsOnBoard) break;
+                    if (piece == null) break;
                     if (!_defWinner.TryGetValue(piece.Id, out int j)) _defWinner[piece.Id] = i;
                     else if (!ReferenceEquals(_batch[j].Def, p.Def) && Beats(s, i, j, piece.Square)) _defWinner[piece.Id] = i;
                     break;
@@ -377,7 +379,7 @@ internal sealed class Resolver
                 case ProposalKind.RemoveAbility:
                 {
                     var piece = s.GetPiece(p.PieceId);
-                    if (piece == null || !piece.IsOnBoard || p.Ability == null) break;
+                    if (piece == null || p.Ability == null) break;
                     var key = (piece.Id, p.Ability);
                     if (!_abilityChanges.TryGetValue(key, out var change)) _abilityChanges[key] = change = new AbilityChange { Proposal = i };
                     if (p.Kind == ProposalKind.RemoveAbility) change.Remove = true;
