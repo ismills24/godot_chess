@@ -187,7 +187,7 @@ The engine is a separate project that the Godot assembly references. A test (`En
 | **M0** ✅ | Bootstrap: Godot 4.7 .NET project, engine library, xUnit tests, CI, README | `dotnet test` green; sandbox scene prints from the engine in Godot .NET headless |
 | **M1** ✅ | State + ops + undo + Zobrist; standard pieces via movement primitives; standard rules | Perft matches known counts at depth 4 on the start position plus 2 tactical positions; make/unmake fuzz is clean |
 | **M2** ✅ | Resolver (§2.4), `PlayTurn`, trace, JSON map importer, scenario runner, `RESOLUTION_RULES.md` | Scenario harness runs; ordering and loop and rollback rules each have a test |
-| **M3** | Content port, each item with scenarios (see §5) | All 23 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end |
+| **M3** ✅ | Content port, each item with scenarios (see §5) | All 23 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end. Done 2026-11-25; C4 is only partly fixed (if no search pass completes, the AI still plays the first ordered root move) |
 | **M4** ✅ | AI: search, eval, profiles, threading, debug output | Finds mate-in-1/2, avoids hanging the royal piece, respects Exploding/Guardian in tactics; nodes/sec benchmark recorded vs the TS `EfficientAI` on the same positions |
 | **M5** | Debug sandbox scene | Load map, play both sides or vs AI, view trace and AI top-N |
 
