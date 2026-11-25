@@ -224,7 +224,7 @@ The sandbox shows it, and the Godot layer animates from it: one wave per beat, e
 | Fire, Freeze tiles | Trigger | `Moved`/`Spawned` onto this square, `TurnEnded` |
 | Slippery tile | Trigger | `Moved` onto this square → `Move` one more step in the direction travelled (unit step of the move; a knight's L uses its longer leg). No slide into pieces, walls, landing-blocked squares or off the board |
 | Wall tile | Trigger | `Moved` onto this square → `ChangeTile(standard)` |
-| Tomb tile | Modifier | Redirect: an ally's `Move` onto the empty tomb → `Revive` the entombed piece + `ChangeTile(standard)`; the ally stays put |
+| Tomb tile | Modifier | Prevent: an ally's `Move` onto the empty tomb (including a Bouncer knock or Piercing jump made in the redirect layer) → `Revive` the entombed piece + `ChangeTile(standard)`; the ally stays put |
 | OnFire, Frozen | Trigger | `TurnEnded` → `AddVar(turnsLeft, -1)`; `VarChanged` to 0 → remove or destroy |
 | WindGust, CheckerboardWipe, WallsPlacement | Trigger (global) | `TurnEnded` with condition variables in state |
 | Pawn promotion | Built-in rule trigger | `Moved` to the far rank → `ChangeDef` |
