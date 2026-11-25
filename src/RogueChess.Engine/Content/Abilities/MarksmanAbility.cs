@@ -43,23 +43,26 @@ public sealed class MarksmanAbility : AbilityDef
         if (self.Var(ChargesVar) <= 0) return;
         int index = piece.AbilityIndex(this);
         for (int sq = 0; sq < board.Area; sq++)
-        {
-            var target = board.PieceAt(sq);
-            if (target == null || target.Side == piece.Side) continue;
-            foreach (var movement in piece.Def.Movements)
-            {
-                if (!movement.Attacks(board, piece, sq)) continue;
+            if (CanShoot(board, piece, sq))
                 moves.Add(new Move(piece.Square, sq, MoveFlags.Capture | MoveFlags.Ability, Aux: index));
-                break;
-            }
-        }
     }
 
     public override void ProposeAction(IBoardView board, Piece piece, AbilityInstance self, in Move action, List<Proposal> into)
     {
-        if (self.Var(ChargesVar) <= 0) return;
-        if (board.PieceAt(action.To) is { } target && target.Side != piece.Side)
-            into.Add(Proposal.Destroy(target, Causes.Ranged));
+        // Like casts, a shot that wouldn't be offered (no valid target) proposes nothing, so it is rejected
+        // instead of spending a charge or hitting a piece the marksman can't reach.
+        if (self.Var(ChargesVar) <= 0 || (uint)action.To >= (uint)board.Area || !CanShoot(board, piece, action.To)) return;
+        into.Add(Proposal.Destroy(board.PieceAt(action.To)!, Causes.Ranged));
         into.Add(Proposal.AddVar(VarTarget.OfAbility(piece, this), ChargesVar, -1, ShotCause));
+    }
+
+    /// <summary>Whether <paramref name="sq"/> holds an enemy the piece's own movement could capture.</summary>
+    private static bool CanShoot(IBoardView board, Piece piece, int sq)
+    {
+        var target = board.PieceAt(sq);
+        if (target == null || target.Side == piece.Side) return false;
+        foreach (var movement in piece.Def.Movements)
+            if (movement.Attacks(board, piece, sq)) return true;
+        return false;
     }
 }
