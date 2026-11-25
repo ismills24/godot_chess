@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using RogueChess.Engine.Core;
+using RogueChess.Engine.Resolution;
 
 namespace RogueChess.Engine.Content;
 
@@ -38,6 +39,19 @@ public abstract class AbilityDef : Behavior
     /// <paramref name="firstIndex"/> on. Used by Phantom, Cannibal, Frozen and caster abilities.
     /// </summary>
     public virtual void ModifyMoves(IBoardView board, Piece piece, AbilityInstance self, List<Move> moves, int firstIndex) { }
+
+    /// <summary>
+    /// True while this ability stops the piece from moving or attacking at all (Frozen). Checked before any
+    /// movement is generated, so no other ability can add moves back, whatever order the abilities are in.
+    /// </summary>
+    public virtual bool Immobilizes(AbilityInstance self) => false;
+
+    /// <summary>
+    /// Turn an action this ability generated (a <see cref="MoveFlags.Ability"/> move whose <c>Aux</c> is this
+    /// ability's index) into the action's wave-0 proposals. The engine stamps this ability as their source.
+    /// Proposing nothing rejects the action.
+    /// </summary>
+    public virtual void ProposeAction(IBoardView board, Piece piece, AbilityInstance self, in Move action, List<Proposal> into) { }
 
     public override string ToString() => Id;
 }

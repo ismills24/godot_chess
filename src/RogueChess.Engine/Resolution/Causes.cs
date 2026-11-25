@@ -18,9 +18,18 @@ public static class Causes
     /// <summary>The rook's half of castling.</summary>
     public const string Castle = "castle";
 
+    /// <summary>The target of a ranged attack (Marksman). Not a move capture.</summary>
+    public const string Ranged = "ranged";
+
     public const string Promotion = "promotion";
     public const string Explosion = "explosion";
     public const string Scapegoat = "scapegoat";
+
+    /// <summary>A caster ability's tile placement (FireMage, FreezeMage, WallPlacement).</summary>
+    public const string Cast = "cast";
+
+    /// <summary>A piece destroyed by its OnFire status running out.</summary>
+    public const string Burned = "burned";
 
     /// <summary>Destroys caused by a move capturing a piece (normal or en passant).</summary>
     public static bool IsMoveCapture(string cause) => cause is Capture or EnPassant;

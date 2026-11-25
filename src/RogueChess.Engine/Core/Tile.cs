@@ -15,7 +15,7 @@ public sealed class Tile
     internal Tile(TileDef def, int[]? vars)
     {
         Def = def;
-        Vars = VarStore.Create(def.VarCount, vars);
+        Vars = VarStore.Create(def.VarCount, vars is { Length: > 0 } ? vars : def.VarCount > 0 ? def.InitialVars() : null);
     }
 
     public TileDef Def { get; }

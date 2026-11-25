@@ -42,6 +42,9 @@ public class TileDef : Behavior
 
     public bool IsDefault => ReferenceEquals(this, Standard);
 
+    /// <summary>Variables a new tile starts with when none are given (e.g. a fire timer). Default: all zero.</summary>
+    public virtual int[] InitialVars() => System.Array.Empty<int>();
+
     internal ulong HashId { get; }
 
     public override string ToString() => Id;

@@ -33,7 +33,7 @@ public class EncounterTests
         Assert.Equal(new[] { "enemy-1", "enemy-2", "boss-1" }, set.Encounters.Select(e => e.Id));
         Assert.All(set.Encounters, e => Assert.Equal((6, 6), (e.Width, e.Height)));
         Assert.Equal(
-            new[] { "FireMage", "FreezeMage", "WallPlacement", "Marksman", "Revenant", "ChronoCapture" },
+            System.Array.Empty<string>(),
             set.UnknownAbilities(Catalog));
         Assert.Equal("\"casual\"", set.Encounters[0].Ai);
     }
@@ -65,7 +65,7 @@ public class EncounterTests
             var army = EncounterGenerator.GenerateArmy(spec, Catalog, seed);
             var gifted = Assert.Single(army, p => p.Abilities.Count > 0);
             Assert.Equal(army.Where(p => !p.Def.IsRoyal).Max(p => p.Def.Value), gifted.Def.Value);
-            Assert.Contains(gifted.Abilities[0].Id, new[] { "exploding", "phantom", "predator" });
+            Assert.Contains(gifted.Abilities[0].Id, new[] { "exploding", "phantom", "predator", "fire-mage", "freeze-mage", "wall-placement", "marksman", "revenant", "chrono-capture" });
         }
     }
 

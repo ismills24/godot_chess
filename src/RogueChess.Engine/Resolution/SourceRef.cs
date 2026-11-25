@@ -63,20 +63,29 @@ public enum VarTargetKind : byte
     Ability,
     Tile,
     Global,
+
+    /// <summary>A side's turn variables (slot <see cref="VarTarget.ExtraTurnsSlot"/>).</summary>
+    Side,
 }
 
-/// <summary>Which variable store a var proposal targets: a piece's ability, a tile, or a global.</summary>
-public readonly record struct VarTarget(VarTargetKind Kind, int PieceId = -1, AbilityDef? Ability = null, int Square = -1, int GlobalIndex = -1)
+/// <summary>Which variable store a var proposal targets: a piece's ability, a tile, a global, or a side's turn variables.</summary>
+public readonly record struct VarTarget(VarTargetKind Kind, int PieceId = -1, AbilityDef? Ability = null, int Square = -1, int GlobalIndex = -1,
+    Side Side = Side.White)
 {
+    /// <summary>Side variable 0: extra turns banked (<see cref="GameState.ExtraTurns"/>).</summary>
+    public const int ExtraTurnsSlot = 0;
+
     public static VarTarget OfAbility(Piece piece, AbilityDef ability) => new(VarTargetKind.Ability, piece.Id, ability);
     public static VarTarget OfTile(int square) => new(VarTargetKind.Tile, Square: square);
     public static VarTarget OfGlobal(int index) => new(VarTargetKind.Global, GlobalIndex: index);
+    public static VarTarget OfSide(Side side) => new(VarTargetKind.Side, Side: side);
 
     public override string ToString() => Kind switch
     {
         VarTargetKind.Ability => $"#{PieceId}.{Ability}",
         VarTargetKind.Tile => $"tile@{Square}",
         VarTargetKind.Global => $"global[{GlobalIndex}]",
+        VarTargetKind.Side => $"side:{Side}",
         _ => "none",
     };
 }

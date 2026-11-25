@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using RogueChess.Engine.Content;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Resolution;
 
@@ -16,7 +17,7 @@ public static class MoveGenerator
         for (int sq = 0; sq < s.Area; sq++)
         {
             var p = s.PieceAt(sq);
-            if (p == null || p.Side != side) continue;
+            if (p == null || p.Side != side || p.IsImmobile) continue;
             int first = moves.Count;
             foreach (var movement in p.Def.Movements)
                 movement.Generate(s, p, moves);
@@ -24,6 +25,23 @@ public static class MoveGenerator
                 ability.Def.ModifyMoves(s, p, ability, moves, first);
             if (s.Rules.Castling && p.Def.IsRoyal && p.MovesMade == 0)
                 GenerateCastling(s, p, moves);
+        }
+        GenerateConsumables(s, moves);
+    }
+
+    [System.ThreadStatic] private static List<int>? _targets;
+
+    /// <summary>One <see cref="Move.UseConsumable"/> per useful target of each consumable the side to move holds a charge of.</summary>
+    private static void GenerateConsumables(GameState s, List<Move> moves)
+    {
+        var globals = s.Globals;
+        for (int i = 0; i < globals.Count; i++)
+        {
+            if (globals[i].Def is not ConsumableDef def || globals[i].Var(ConsumableDef.ChargesVar(s.SideToMove)) <= 0) continue;
+            var targets = _targets ??= new List<int>();
+            targets.Clear();
+            def.GenerateTargets(s, s.SideToMove, targets);
+            foreach (int t in targets) moves.Add(Move.UseConsumable(i, t));
         }
     }
 
@@ -58,7 +76,7 @@ public static class MoveGenerator
         for (int sq = 0; sq < s.Area; sq++)
         {
             var p = s.PieceAt(sq);
-            if (p == null || p.Side != by) continue;
+            if (p == null || p.Side != by || p.IsImmobile) continue;
             foreach (var movement in p.Def.Movements)
                 if (movement.Attacks(s, p, target)) return true;
         }

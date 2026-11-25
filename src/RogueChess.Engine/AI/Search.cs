@@ -172,7 +172,7 @@ internal sealed class Search
                 if (!Game.PlayTurn(_s, m).Accepted) continue;
                 _path[1] = _s.Hash;
                 int lower = best == -Inf || fullWindow ? -Inf : Math.Max(-Inf, best - slack);
-                int score = -Negamax(depth - 1, 1, -Inf, -lower);
+                int score = Child(_rootSide, depth - 1, 1, lower, Inf);
                 _s.UndoTo(mark);
                 if (_aborted) break;
 
@@ -328,13 +328,14 @@ internal sealed class Search
         Move bestMove = default;
         bool any = false;
 
+        var mover = _s.SideToMove;
         for (int n = 0; n < moves.Count; n++)
         {
             var m = PickNext(ply, n);
             int mark = _s.UndoDepth;
             if (!Game.PlayTurn(_s, m).Accepted) continue;
             _path[ply + 1] = _s.Hash;
-            int score = -Negamax(depth - 1, ply + 1, -beta, -alpha);
+            int score = Child(mover, depth - 1, ply + 1, alpha, beta);
             _s.UndoTo(mark);
             if (_aborted) return 0;
             any = true;
@@ -351,7 +352,7 @@ internal sealed class Search
                     _pvLength[ply] = _pvLength[ply + 1] + 1;
                     if (alpha >= beta)
                     {
-                        if (!m.IsCapture)
+                        if (!m.IsCapture && m.From >= 0)
                         {
                             if (_killers[ply, 0] != m) { _killers[ply, 1] = _killers[ply, 0]; _killers[ply, 0] = m; }
                             _history[m.From * _s.Area + m.To] += depth * depth;
@@ -388,13 +389,16 @@ internal sealed class Search
         MoveGenerator.GenerateLegal(_s, moves);
         ScoreMoves(ply, moves, false, default, capturesOnly: true);
 
+        var mover = _s.SideToMove;
         for (int n = 0; n < moves.Count; n++)
         {
             var m = PickNext(ply, n);
             int mark = _s.UndoDepth;
             if (!Game.PlayTurn(_s, m).Accepted) continue;
             _path[ply + 1] = _s.Hash;
-            int score = -Quiesce(ply + 1, -beta, -alpha, left - 1);
+            int score = _s.SideToMove == mover
+                ? Quiesce(ply + 1, alpha, beta, left - 1)
+                : -Quiesce(ply + 1, -beta, -alpha, left - 1);
             _s.UndoTo(mark);
             if (_aborted) return 0;
             if (score >= beta) return score;
@@ -404,6 +408,16 @@ internal sealed class Search
     }
 
     // ================================================================ helpers
+
+    /// <summary>
+    /// Score of the position after a move by <paramref name="mover"/>, from the mover's point of view. Usually the
+    /// turn passed and the child is negated; after a free action (consumable) or into an extra turn the same side is
+    /// still to move, so the child's score is already the mover's.
+    /// </summary>
+    private int Child(Side mover, int depth, int ply, int alpha, int beta)
+        => _s.SideToMove == mover
+            ? Negamax(depth, ply, alpha, beta)
+            : -Negamax(depth, ply, -beta, -alpha);
 
     /// <summary>Counts a node and checks the budgets. Returns true when the search must stop.</summary>
     private bool Tick()
@@ -481,6 +495,8 @@ internal sealed class Search
             else if (m.Promotion >= 0) score = 900_000_000;
             else if (m == _killers[ply, 0]) score = 800_000_000;
             else if (m == _killers[ply, 1]) score = 700_000_000;
+            else if (m.Is(MoveFlags.Cast)) score = -1; // casts (up to 24 per caster) after every other move
+            else if (m.From < 0) score = 0; // consumable use: no history slot
             else score = Math.Min(_history[m.From * _s.Area + m.To], 600_000_000);
 
             moves[write++] = m;
@@ -517,6 +533,7 @@ internal sealed class Search
                 keys[i] = 1_000_000 + (victim == null ? 1 : victim.Def.IsRoyal ? 1000 : victim.Value) * 64 - (_s.PieceAt(m.From)?.Value ?? 0);
             }
             else if (m.Promotion >= 0) keys[i] = 900_000;
+            else if (m.Is(MoveFlags.Cast)) keys[i] = -1;
         }
         Array.Sort(order, (a, b) => keys[a] != keys[b] ? keys[b].CompareTo(keys[a]) : a.CompareTo(b));
     }

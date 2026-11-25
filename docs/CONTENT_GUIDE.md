@@ -10,7 +10,8 @@ How to add pieces, abilities and tiles. Read [RESOLUTION_RULES.md](RESOLUTION_RU
 | Abilities | `src/RogueChess.Engine/Content/Abilities/` |
 | Tiles | `src/RogueChess.Engine/Content/Tiles/` |
 | Registration (map ids, sandbox palette) | `src/RogueChess.Engine/Content/ContentLibrary.cs` |
-| Tests | `tests/RogueChess.Engine.Tests/ContentTests.cs` |
+| Relics, consumables | `src/RogueChess.Engine/Content/Relics/`, `Content/Consumables/` |
+| Tests | `tests/RogueChess.Engine.Tests/ContentTests.cs` (`RunContentTests.cs` for relics, consumables, clock) |
 | Sandbox scenarios | `tools/make_scenarios.py` → `maps/sandbox/*.json` |
 
 Every new def needs one line in `ContentLibrary.CreateCatalog()`. That makes it loadable from map files and shows it in the sandbox palette.
@@ -110,6 +111,10 @@ You don't handle conflicts yourself. If two modifiers claim the same proposal, t
 
 Override `ModifyMoves(board, piece, self, moves, firstIndex)`: add, remove or rewrite the piece's moves from `firstIndex` on. See `PhantomAbility` (adds slides through allies). The engine still resolves each resulting move through the normal pipeline.
 
+## Recipe 4b: an ability with its own action (ranged attack)
+
+An ability can offer an action that isn't a plain move: add a `Move` with `MoveFlags.Ability` (plus `Capture` if it takes the piece on `To`) and `Aux` = the ability's index on the piece (`piece.AbilityIndex(this)`), then override `ProposeAction(board, piece, self, action, into)` to turn it into wave-0 proposals. The engine stamps them with the ability as their source, so kills are credited to the piece. The action is offered beside the normal moves (written `a1a4@marksman`), so the player and the AI choose between them. See `MarksmanAbility` (destroy the target + spend a charge).
+
 ## Recipe 5: an ability with state
 
 Declare variables and change them only through proposals. Use `VarChanged` to react to the new value (see `PredatorAbility`):
@@ -133,6 +138,83 @@ Plain movement rules are flags on `TileDef`; behaviour comes from the same hooks
 | `blocksCapture` | the occupant can't be captured by a move | Fog |
 
 `WallTile` (trigger: breaks when landed on) and `GuardianTile` (prevent modifier: cancels one capture) show the two hook styles.
+
+Tiles with variables (timers) set their starting values with `InitialVars()`; they are used whenever a tile is placed without explicit values (map files, the sandbox, `ChangeTile` with no vars). See `StatusTile` (Fire, Freeze).
+
+## Recipe 6b: a cast (an action that isn't a move)
+
+A caster places a tile instead of moving. Most casters are data: `new CasterAbility(id, name, tile, range, tileVars...)` (see `CasterAbility.FireMage`). Casts may only target empty plain floor (`CasterAbility.CanTarget`, decision B11), never a square the piece could move to.
+
+Under the hood, an ability's `ModifyMoves` adds `Move(from, target, MoveFlags.Cast, Aux: abilityIndex)` entries, and the engine asks that ability's `ProposeAction` for the wave-0 proposals (proposing nothing rejects the action). Because the move names its ability by index, a piece can carry several casts. Notation: `c1e3@fire-mage`. The AI searches casts after all other moves.
+
+## Recipe 7: a board effect or condition
+
+A board effect is a condition plus an effect (`Content/BoardEffects/`), wrapped in a `BoardEffectDef` global.
+At the end of every turn (both sides' turns count; turn = `Ply + 1`, as in the prototype) the def asks its
+`BoardCondition.IsMet(board, turn, timesFired)`. If the condition is met, it calls `BoardEffect.Apply(ctx, timesFired)`,
+which proposes changes like any trigger, and adds 1 to the global's "times fired" variable. Conditions and effects keep
+no state: anything they need to remember must come from `timesFired` (TurnDelay fires once, BoardValue's
+`maxTriggers`, CheckerboardWipe's alternating colour) or from the board.
+
+- New condition: subclass `BoardCondition` in `Conditions.cs` and add a case to `BoardEffectJson.ParseCondition`.
+- New effect: subclass `BoardEffect` in `Effects.cs`, add a case to `BoardEffectJson.ParseEffect`, and register its type in `AddBoardEffects`.
+- Random choices use `ctx.Random`, the game's seeded generator, so they are reproducible and undo cleanly.
+- To freeze pieces, propose `Proposal.AddAbility(piece, FrozenAbility.Instance, cause, turns)`. Re-freezing keeps the longer duration.
+- Watch out: Frozen is worth −2 board value, and a side whose pieces are all frozen has no legal moves, which ends the game as a draw.
+
+Map format (same as the prototype):
+
+```json
+"boardEffects": [{ "name": "Periodic Wind Gust",
+  "condition": { "type": "TurnInterval", "params": { "interval": 4, "startTurn": 4 } },
+  "effect":    { "type": "WindGust", "params": { "targetPlayer": "White", "freezeDuration": 2 } } }]
+```
+
+| Condition | Params (defaults) |
+|---|---|
+| `TurnInterval` | `interval` (1), `startTurn` (= interval) |
+| `TurnDelay` | `turnNumber` (1): fires once |
+| `BoardValue` | `color` ("white"), `threshold` (10), `maxTriggers` (-1 = unlimited): fires while that side's non-royal value is below the threshold |
+
+| Effect | Params (defaults) |
+|---|---|
+| `WallsPlacement` | `wallCount` (1): random empty, non-wall squares become walls |
+| `WindGust` | `targetPlayer` ("white"), `freezeDuration` (2): in each file, that side's highest piece moves down a rank; if blocked, it and the blocker freeze |
+| `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
+
+## Recipe 8: a relic, a consumable, the clock
+
+**Relics** (`Content/Relics/`) subclass `RelicDef`, a `GlobalDef` with an `Owner`; build one instance per side
+(`TimeBankRelic.For(side)`, id `"time-bank:white"`) and add it with `state.AddGlobal(def)`. They are ordinary global
+triggers, so they run in AI search, and any state goes in global variables. Register with
+`.AddRelic("time-bank", TimeBankRelic.For, "TimeBankRelic")`.
+
+**Consumables** (`Content/Consumables/`) subclass `ConsumableDef`. One global per kind holds both sides' charges
+(`ConsumableDef.ChargesVar(side)`); give them with `def.Give(state, white, black)`. Override `Use(board, owner, target, into)`
+to propose the effect (return false for an invalid use; the engine spends the charge) and, for targeted ones,
+`GenerateTargets` to offer only useful targets (each becomes a `Move.UseConsumable(globalIndex, target)` the AI also
+searches). A use is a free action: the same side acts again. Grant extra turns with
+`Proposal.AddVar(VarTarget.OfSide(side), VarTarget.ExtraTurnsSlot, 1, cause)`. `Value` tells the AI what an unused
+charge is worth. Register with `.AddConsumable(def, "PrototypeId")`.
+
+**Clock.** Content proposes `Proposal.Clock(side, deltaMs, cause)` (ChronoCapture, TimeBank). The engine sums them into
+`GameState.ClockMs(side)` (undone with the state, not hashed), and `Game.PlayTurn` reports the turn's change in
+`TurnResult.ClockDeltaMs(side)`. The host owns the real-time countdown: subtract elapsed time, add the reported deltas.
+
+Maps may list them (an extension; the prototype kept them in the run state):
+
+```json
+"relics": [{ "id": "TimeBankRelic", "owner": "White" }],
+"consumables": [{ "id": "FortifyPotion", "owner": "White", "charges": 1 }]
+```
+
+| Content | Behaviour |
+|---|---|
+| `ChronoCapture` (ability) | +5 s to its side for every enemy kill credited to the piece (captures, ranged, its own explosion) |
+| `TimeBankRelic` | +3 s to the owner after each of its own piece moves |
+| `RoyalPromotionRelic` | an owner's non-royal, non-pawn piece reaching its last rank becomes a Queen (abilities kept) |
+| `ExtraTurnPotion` | free action: bank one extra turn |
+| `FortifyPotion` | free action: every empty, non-wall cell in the target's row becomes a wall |
 
 ## Testing a new piece
 

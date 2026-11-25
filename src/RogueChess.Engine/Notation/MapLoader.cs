@@ -91,9 +91,51 @@ public static class MapLoader
                     : "";
                 var factory = catalog.FindBoardEffect(type);
                 if (factory == null) { Unknown("board effect", type); continue; }
-                var (def, vars) = factory(e);
-                s.AddGlobal(def, vars);
+                try
+                {
+                    var (def, vars) = factory(e);
+                    s.AddGlobal(def, vars);
+                }
+                catch (FormatException ex)
+                {
+                    problems.Add($"board effect '{type}': {ex.Message}");
+                }
             }
+        }
+
+        // Extension (the prototype kept relics and consumables in the run, not the map):
+        // "relics": [{ "id": "TimeBankRelic", "owner": "White" }],
+        // "consumables": [{ "id": "ExtraTurnPotion", "owner": "White", "charges": 1 }]   (charges default 1)
+        if (root.TryGetProperty("relics", out var relics))
+        {
+            foreach (var r in relics.EnumerateArray())
+            {
+                string id = r.GetProperty("id").GetString() ?? "";
+                var side = ParseSide(r.TryGetProperty("owner", out var o) ? o.GetString() : null, problems);
+                var factory = catalog.FindRelic(id);
+                if (factory == null) { Unknown("relic", id); continue; }
+                var def = factory(side);
+                if (s.Globals.Any(g => g.Def == def)) { problems.Add($"relic '{id}' given to {side} twice"); continue; }
+                s.AddGlobal(def);
+            }
+        }
+
+        if (root.TryGetProperty("consumables", out var consumables))
+        {
+            var charges = new Dictionary<ConsumableDef, int[]>();
+            var order = new List<ConsumableDef>();
+            foreach (var c in consumables.EnumerateArray())
+            {
+                string id = c.GetProperty("id").GetString() ?? "";
+                var side = ParseSide(c.TryGetProperty("owner", out var o) ? o.GetString() : null, problems);
+                int count = c.TryGetProperty("charges", out var n) ? n.GetInt32() : 1;
+                var def = catalog.FindConsumable(id);
+                if (def == null) { Unknown("consumable", id); continue; }
+                if (count < 0) { problems.Add($"consumable '{id}' has negative charges"); continue; }
+                if (!charges.TryGetValue(def, out var perSide)) { charges[def] = perSide = new int[2]; order.Add(def); }
+                perSide[ConsumableDef.ChargesVar(side)] += count;
+            }
+            foreach (var def in order) def.Give(s, charges[def][0], charges[def][1]);
         }
 
         if (root.TryGetProperty("startingPlayer", out var sp))

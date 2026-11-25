@@ -73,13 +73,15 @@ public sealed class WeightedEvaluator : IEvaluator
                 }
             }
 
-            if (_needMoves)
+            if (_needMoves && !p.IsImmobile)
             {
                 _moves.Clear();
                 foreach (var movement in p.Def.Movements) movement.Generate(s, p, _moves);
                 foreach (var ability in p.Abilities) ability.Def.ModifyMoves(s, p, ability, _moves, 0);
 
-                v += _w.Mobility * _moves.Count;
+                int mobility = 0;
+                foreach (var m in _moves) if (!m.Is(MoveFlags.Cast)) mobility++; // casts are not mobility
+                v += _w.Mobility * mobility;
                 int biggestThreat = 0;
                 foreach (var m in _moves)
                 {
@@ -92,6 +94,11 @@ public sealed class WeightedEvaluator : IEvaluator
 
             white += p.Side == Side.White ? v : -v;
         }
+
+        // Unused consumables are worth their value, so the search only spends one when it gains more.
+        foreach (var g in s.Globals)
+            if (g.Def is Content.ConsumableDef c)
+                white += c.Value * _w.Material * (g.Var(Content.ConsumableDef.ChargesVar(Side.White)) - g.Var(Content.ConsumableDef.ChargesVar(Side.Black)));
 
         int score = s.SideToMove == Side.White ? white : -white;
         return score + _w.Tempo;

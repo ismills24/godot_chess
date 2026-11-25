@@ -187,7 +187,7 @@ The engine is a separate project that the Godot assembly references. A test (`En
 | **M0** ✅ | Bootstrap: Godot 4.7 .NET project, engine library, xUnit tests, CI, README | `dotnet test` green; sandbox scene prints from the engine in Godot .NET headless |
 | **M1** ✅ | State + ops + undo + Zobrist; standard pieces via movement primitives; standard rules | Perft matches known counts at depth 4 on the start position plus 2 tactical positions; make/unmake fuzz is clean |
 | **M2** ✅ | Resolver (§2.4), `PlayTurn`, trace, JSON map importer, scenario runner, `RESOLUTION_RULES.md` | Scenario harness runs; ordering and loop and rollback rules each have a test |
-| **M3** | Content port, each item with scenarios (see §5) | All 23 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end |
+| **M3** ✅ | Content port, each item with scenarios (see §5) | All 23 legacy maps load; every §1 bug has a regression scenario; `CONTENT_GUIDE.md` shows adding a piece end to end. Done 2026-11-25; C4 is only partly fixed (if no search pass completes, the AI still plays the first ordered root move) |
 | **M4** ✅ | AI: search, eval, profiles, threading, debug output | Finds mate-in-1/2, avoids hanging the royal piece, respects Exploding/Guardian in tactics; nodes/sec benchmark recorded vs the TS `EfficientAI` on the same positions |
 | **M5** | Debug sandbox scene | Load map, play both sides or vs AI, view trace and AI top-N |
 
@@ -246,21 +246,21 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 | Content | Port notes |
 |---|---|
 | ✅ Pawn, Knight, Bishop, Rook, Queen, King | Movement primitives. Promotion is a rule trigger (`ChangeDef`, abilities kept). King = `Royal` tag |
-| Marksman | Separate `Ranged` action with charges in vars. Melee still available (B4) |
+| ✅ Marksman | Separate `Ranged` action with charges in vars. Melee still available (B4) |
 | ✅ Exploding | Trigger on own `Died` → destroy everything within radius 1, including the capturer who moved in |
 | ✅ Scapegoat | Prevent modifier: a destroy aimed at an adjacent ally is replaced by its own destroy. No kill credit for its own death |
-| Revenant | `After(PieceDied self)` → `SetTile(Tomb{snapshot})`. Decide whether the revived piece keeps Revenant (B10) |
-| Piercing / Bouncer | `Before(own MoveEvent with capture)` → rewrite. Fix the Bouncer distance semantics (B5) |
-| Cannibal, ✅ Phantom | `ModifyMoves` only |
+| ✅ Revenant | `After(PieceDied self)` → `SetTile(Tomb{snapshot})`. Revives once (B10); `RevenantAbility.Forever` keeps it |
+| ✅ Piercing / Bouncer | `Before(own MoveEvent with capture)` → rewrite. Fix the Bouncer distance semantics (B5) |
+| ✅ Cannibal, ✅ Phantom | `ModifyMoves` only |
 | ✅ Predator | `Killed` by self → `AddVar(kills)`; `VarChanged` → `ChangeDef` one step per kill |
-| ChronoCapture | `After(PieceDied, killer = self)` → `ClockDelta` (fixes B3) |
-| FireMage, FreezeMage, WallPlacement | `Cast` actions with range and tile params on the def. Decide which tiles casts may overwrite (B11) |
-| OnFire, Frozen | Status abilities with `turnsLeft` var. `OnTurnEnd` → `SetVar` / `RemoveAbility` / `Destroy` |
-| ✅ Wall, ✅ Fog, ✅ Guardian, Slippery, Tomb, Fire, Freeze tiles | Restriction flags + hooks, timers in tile vars. Fog = `BlocksCapture` flag; Guardian stops move captures only. Fix the Slippery direction rule (B6) |
-| WindGust, CheckerboardWipe, WallsPlacement + Turn/BoardValue conditions | `BoardEffectDef` in `GameState.Globals`, condition state in vars |
-| RoyalPromotion, TimeBank relics | `RelicDef` in Globals |
-| ExtraTurn, Fortify consumables | `UseConsumable` action. Extra turn via the `Turn.extraTurns` var |
-| Clock | Engine emits `ClockDelta`. The real-time clock stays outside the engine for now |
+| ✅ ChronoCapture | `After(PieceDied, killer = self)` → `ClockDelta` (fixes B3) |
+| ✅ FireMage, FreezeMage, WallPlacement | `Cast` actions with range and tile params on the def. Casts only land on empty plain floor (B11) |
+| ✅ OnFire, ✅ Frozen | Status abilities with `turnsLeft` var. `OnTurnEnd` → `SetVar` / `RemoveAbility` / `Destroy` |
+| ✅ Wall, Fog, Guardian, Slippery, Tomb, Fire, Freeze tiles | Restriction flags + hooks, timers in tile vars. Fog = `BlocksCapture` flag; Guardian stops move captures only. Fix the Slippery direction rule (B6) |
+| ✅ WindGust, CheckerboardWipe, WallsPlacement + TurnInterval/TurnDelay/BoardValue conditions | `BoardEffectDef` in `GameState.Globals`, checked at every turn end; "times fired" is the global's variable |
+| ✅ RoyalPromotion, TimeBank relics | `RelicDef` in Globals |
+| ✅ ExtraTurn, Fortify consumables | `UseConsumable` action. Extra turn via the `Turn.extraTurns` var |
+| ✅ Clock | Engine emits `ClockDelta`. The real-time clock stays outside the engine for now |
 
 ---
 
@@ -269,8 +269,9 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 1. ~~**Language:** C# or GDScript?~~ **Decided: C#.**
 2. ~~**Reaction order:** depth-first or breadth-first?~~ **Decided: neither. Simultaneous wave resolution (PLC-style scan cycle). See [RESOLUTION_RULES.md](RESOLUTION_RULES.md).**
 3. ~~**Default win rule:** capture the royal piece or checkmate?~~ **Decided: capture the king** (explosions make checkmate meaningless). No check rule; see [RESOLUTION_RULES.md §7.1](RESOLUTION_RULES.md).
-4. **Revenant:** revive once or forever?
-5. **Bouncer:** push the target one square or the attacker's full distance?
+4. ~~**Revenant:** revive once or forever?~~ **Decided (2026-11-24): once**, as a def parameter (`RevenantAbility.Forever` exists).
+5. ~~**Bouncer:** push the target one square or the attacker's full distance?~~ **Decided (2026-11-24): one square.**
 6. **Pawn diagonal wall capture** (pawns can "capture" walls diagonally today): keep it?
 7. **Marksman range:** its normal capture squares (today) or its own range parameter?
+9. **Cast targets (B11):** decided 2026-11-24 for now: casts land only on empty plain floor. Revisit if casts should refresh or replace other tiles.
 8. **Source of truth:** confirm we port from `GigaChess/rogue-chess` `overworld-poc` and not `ismills24/chess` main.
