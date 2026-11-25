@@ -1,0 +1,82 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://places/common/place.gd" id="1_place"]
+[ext_resource type="Script" path="res://places/town_gate/town_gate_world.gd" id="2_world"]
+[ext_resource type="Shader" path="res://menu/pixel_finish.gdshader" id="3_pixel"]
+[ext_resource type="Shader" path="res://places/common/day_sky.gdshader" id="4_sky"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("4_sky")
+shader_parameter/zenith_color = Color(0.06, 0.22, 0.62, 1)
+shader_parameter/horizon_color = Color(0.48, 0.68, 0.92, 1)
+shader_parameter/cumulus = 0.12
+shader_parameter/cirrus = 0.15
+
+[sub_resource type="Sky" id="Sky_day"]
+sky_material = SubResource("ShaderMaterial_sky")
+process_mode = 3
+
+[sub_resource type="Environment" id="Environment_place"]
+background_mode = 2
+sky = SubResource("Sky_day")
+ambient_light_source = 3
+ambient_light_sky_contribution = 0.7
+ambient_light_energy = 0.9
+tonemap_mode = 4
+tonemap_exposure = 1.0
+tonemap_white = 6.0
+glow_enabled = true
+glow_levels/2 = 1.0
+glow_levels/3 = 1.0
+glow_levels/4 = 0.6
+glow_levels/5 = 0.4
+glow_intensity = 0.5
+glow_strength = 1.0
+glow_bloom = 0.0
+glow_hdr_threshold = 1.1
+glow_hdr_scale = 1.4
+fog_enabled = true
+fog_mode = 0
+fog_aerial_perspective = 0.7
+fog_sky_affect = 0.0
+adjustment_enabled = true
+adjustment_contrast = 1.06
+adjustment_saturation = 1.12
+fog_light_color = Color(0.62, 0.74, 0.88, 1)
+fog_density = 0.006
+ambient_light_color = Color(0.6, 0.72, 0.9, 1)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pixel"]
+resource_local_to_scene = true
+shader = ExtResource("3_pixel")
+shader_parameter/vignette = 0.34
+shader_parameter/shadow_tint = Vector3(0.02, 0.03, 0.06)
+shader_parameter/highlight_tint = Vector3(1.03, 1.0, 0.95)
+
+[node name="TownGate" type="Node3D"]
+script = ExtResource("1_place")
+
+[node name="Stage" type="SubViewport" parent="."]
+own_world_3d = true
+gui_disable_input = true
+size = Vector2i(704, 396)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Stage"]
+environment = SubResource("Environment_place")
+
+[node name="Camera" type="Camera3D" parent="Stage"]
+current = true
+fov = 50.0
+near = 0.05
+far = 300.0
+
+[node name="World" type="Node3D" parent="Stage"]
+script = ExtResource("2_world")
+
+[node name="Display" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_pixel")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
