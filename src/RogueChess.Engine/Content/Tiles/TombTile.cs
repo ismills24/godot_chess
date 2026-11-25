@@ -6,13 +6,16 @@ using RogueChess.Engine.Resolution;
 namespace RogueChess.Engine.Content.Tiles;
 
 /// <summary>
-/// Tomb (redirect layer), left by a dying <see cref="RevenantAbility"/> piece. When an ally of the entombed piece
+/// Tomb (prevent layer), left by a dying <see cref="RevenantAbility"/> piece. When an ally of the entombed piece
 /// tries to move onto the empty tomb, the move is cancelled (the ally stays where it was), the entombed piece
 /// comes back on the tomb's square and the tile becomes standard. As in the prototype:
 /// <list type="bullet">
 /// <item>Only allies of the entombed piece open it. Enemies can stand on it; it stays a tomb.</item>
 /// <item>The square must be empty in the snapshot, so a capture onto the tomb never opens it.</item>
 /// <item>Any move counts, not only the player's: a Slippery slide or a push onto the tomb opens it too.</item>
+/// <item>That includes moves another modifier makes in the redirect layer (a Bouncer's knock, a Piercing jump), as in
+/// the prototype where those were ordinary move events. That is why the tomb sits in the prevent layer: it cancels
+/// the move as it is about to commit, after the redirects.</item>
 /// </list>
 /// The piece comes back as it died (same id, def, abilities and variables), except that a revive-once
 /// Revenant is removed in the same wave (B10).
@@ -44,7 +47,7 @@ public sealed class TombTile : TileDef
         return piece is { IsOnBoard: false } ? piece : null;
     }
 
-    public override ModifierLayer Layer => ModifierLayer.Redirect;
+    public override ModifierLayer Layer => ModifierLayer.Prevent;
 
     public override void Modify(ModifierContext ctx)
     {

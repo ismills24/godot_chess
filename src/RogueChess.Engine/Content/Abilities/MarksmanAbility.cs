@@ -21,6 +21,9 @@ namespace RogueChess.Engine.Content.Abilities;
 /// explosion. A Scapegoat still dies in the target's place; the charge is spent either way.</item>
 /// <item>The kill is credited to the marksman piece (Predator evolves; ChronoCapture can count it, fixing B3).</item>
 /// <item>A frozen marksman can't shoot (it has no actions at all).</item>
+/// <item>A <see cref="CannibalAbility"/> marksman can't shoot: its movement can't take enemies, so it has nothing to
+/// shoot at. Checked here so the result doesn't depend on which of the two abilities came first (Cannibal would
+/// otherwise strip the shots only when it comes after Marksman).</item>
 /// </list>
 /// </summary>
 public sealed class MarksmanAbility : AbilityDef
@@ -40,7 +43,7 @@ public sealed class MarksmanAbility : AbilityDef
 
     public override void ModifyMoves(IBoardView board, Piece piece, AbilityInstance self, List<Move> moves, int firstIndex)
     {
-        if (self.Var(ChargesVar) <= 0) return;
+        if (self.Var(ChargesVar) <= 0 || piece.HasAbility(CannibalAbility.Instance)) return;
         int index = piece.AbilityIndex(this);
         for (int sq = 0; sq < board.Area; sq++)
         {
