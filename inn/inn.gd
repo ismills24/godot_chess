@@ -75,6 +75,8 @@ const REACH_SECONDS := 0.28
 const DRINK_EVERY := Vector2i(2, 3)
 const DRINK_AFTER_MOVE := 1.1
 
+@export var skip_intro := false
+
 @onready var _stage: SubViewport = $Stage
 @onready var _camera: Camera3D = $Stage/Camera
 @onready var _world: InnWorld = $Stage/World
@@ -106,6 +108,8 @@ var _match: Node
 var _board: Node3D
 var _hud: CanvasLayer
 var _status: Label
+var _undo_button: Button
+var _leave_button: Button
 ## Your picked-up piece's square, where it can go and which of those are captures; the
 ## last move's squares.
 var _chosen := -1
@@ -144,7 +148,7 @@ func _ready() -> void:
 	_camera.transform = _walk_shot(0.0)
 	get_viewport().size_changed.connect(_frame_stage)
 	_frame_stage()
-	if _reduced_motion:
+	if _reduced_motion or skip_intro:
 		_bartender.serve(true)
 		_world.player_stool.position = InnWorld.BAR_STOOL_AT
 		_zoom = LEAN_ZOOM
@@ -187,7 +191,12 @@ func _exit_tree() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
-		get_tree().change_scene_to_file(MENU_SCENE)
+		if _match:
+			_match.Leave()
+		elif get_parent().has_method("LeaveEncounter"):
+			get_parent().LeaveEncounter()
+		else:
+			get_tree().change_scene_to_file(MENU_SCENE)
 		return
 	if not _match:
 		return
@@ -290,12 +299,29 @@ func _begin_play() -> void:
 	_match = InnMatch.new()
 	add_child(_match)
 	_match.connect("Moved", _on_moved)
-	_match.connect("Thinking", func() -> void: _say("The bartender considers his move..."))
+	_match.connect("Thinking", func() -> void:
+		_say("The bartender considers his move...")
+		_undo_button.disabled = true
+		_leave_button.disabled = true)
 	_match.connect("Finished", _on_finished)
+	_match.connect("Refreshed", _on_refreshed)
+	_match.connect("Failed", func(message: String) -> void:
+		_on_refreshed()
+		_say(message))
 	_match.Begin(AUTOPLAY_ARG in OS.get_cmdline_user_args())
 	_board.show_pieces(_match.Pieces(), false)
 	_build_hud()
 	_say("Your move.")
+
+
+func _on_refreshed() -> void:
+	_board.show_pieces(_match.Pieces(), false)
+	_chosen = -1
+	_refresh_marks()
+	_undo_button.disabled = not _match.CanUndo()
+	_leave_button.disabled = false
+	if _match.IsPlayerTurn():
+		_say("Check. Your move." if _match.CheckedKing() >= 0 else "Your move.")
 
 
 func _on_moved(from: int, to: int, by_bartender: bool) -> void:
@@ -331,7 +357,10 @@ func _on_finished(winner: String) -> void:
 		"player": "Checkmate. The bartender tips his king to you.",
 		"bartender": "Checkmate. The bartender wins.",
 	}.get(winner, "A draw.")
-	_say(line + "   Esc to leave")
+	_say(line)
+	_leave_button.text = "Return to map"
+	_leave_button.disabled = false
+	_undo_button.disabled = true
 
 
 func _click(square: int) -> void:
@@ -390,6 +419,24 @@ func _light_board() -> void:
 func _build_hud() -> void:
 	_hud = CanvasLayer.new()
 	add_child(_hud)
+	var actions := HBoxContainer.new()
+	actions.position = Vector2(22, 42)
+	actions.add_theme_constant_override("separation", 12)
+	_hud.add_child(actions)
+	_undo_button = Button.new()
+	_undo_button.text = "Undo move"
+	_undo_button.disabled = not _match.CanUndo()
+	_undo_button.pressed.connect(func() -> void: _match.Undo())
+	actions.add_child(_undo_button)
+	_leave_button = Button.new()
+	_leave_button.text = "Concede and leave"
+	_leave_button.pressed.connect(func() -> void: _match.Leave())
+	actions.add_child(_leave_button)
+	if get_parent().has_method("SaveNow"):
+		var save := Button.new()
+		save.text = "Save run"
+		save.pressed.connect(func() -> void: get_parent().SaveNow())
+		actions.add_child(save)
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(["Georgia", "Liberation Serif", "Noto Serif", "DejaVu Serif"])
 	font.font_weight = 700

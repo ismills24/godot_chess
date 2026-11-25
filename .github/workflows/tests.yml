@@ -35,6 +35,21 @@ jobs:
       - name: Test
         run: dotnet test tests/RogueChess.Engine.Tests/RogueChess.Engine.Tests.csproj --no-build --configuration Release --logger "console;verbosity=normal"
 
+  run-tests:
+    name: Run state and replay (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Test runs
+        run: dotnet test tests/RogueChess.Runs.Tests/RogueChess.Runs.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+
   godot-build:
     name: Godot assembly builds
     runs-on: ubuntu-latest

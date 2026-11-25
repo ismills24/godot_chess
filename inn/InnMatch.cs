@@ -1,186 +1,207 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
+using GodotChess.Run;
 using RogueChess.Engine.AI;
+using RogueChess.Engine.Content;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Notation;
-using RogueChess.Engine.Resolution;
 using RogueChess.Engine.Rules;
+using RogueChess.Runs;
 using Side = RogueChess.Engine.Core.Side;
 
 namespace GodotChess.Inn;
 
-/// <summary>
-/// The game played across the inn's bar: you have White, the bartender Black. Owns the engine state and the
-/// bartender's AI (which thinks on a background thread), and answers the inn scene's questions about it.
-/// The scene draws the board and reads input; this node only knows squares, numbered rank * Width + file
-/// with rank 0 White's home rank.
-/// For now the game is plain chess from the start position; encounters come later.
-/// </summary>
+/// <summary>Presentation adapter. RunSession owns game state; this node plays its derived move frames.</summary>
 public partial class InnMatch : Node
 {
-    /// <summary>The position changed: a move was played (from, to are its squares).</summary>
     [Signal] public delegate void MovedEventHandler(int from, int to, bool byBartender);
-    /// <summary>The bartender started thinking about his move.</summary>
     [Signal] public delegate void ThinkingEventHandler();
-    /// <summary>The game is over: "player", "bartender" or "draw".</summary>
     [Signal] public delegate void FinishedEventHandler(string winner);
+    [Signal] public delegate void RefreshedEventHandler();
+    [Signal] public delegate void FailedEventHandler(string reason);
 
-    /// <summary>A beat after your move before he starts on his, so his reply never lands instantly.</summary>
-    private const double ReplyDelay = 0.6;
-
-    private readonly AgentFactory _factory = new();
-    private readonly List<Move> _legal = new();
+    private readonly Catalog _catalog = ContentLibrary.CreateCatalog();
+    private readonly Queue<BattleStep> _frames = new();
+    private RunSession _session = null!;
+    private RunHost? _host;
+    private string _encounterId = "";
     private GameState _state = null!;
-    private IChessAgent _bartender = null!;
-    private IChessAgent? _autoplay;
-    private Task<AgentDecision>? _thinking;
+    private Task<CommandResult>? _pending;
     private CancellationTokenSource? _cancel;
-    private double _sinceMove;
-    private bool _finished;
-
-    /// <summary>While set, the bartender holds off starting his next move (he's busy drinking).</summary>
+    private bool _readyForInput, _finished, _autoplay, _returnAfter;
+    private double _sinceFrame;
+    private long _decisionStart;
+    private RunPhase _before;
     public bool Busy { get; set; }
-
     public int Width => _state.Width;
     public int Height => _state.Height;
+    public GameState DisplayState => _state;
 
-    /// <summary>Set up a fresh game. `autoplay` hands your side to an AI as well (for unattended test renders).</summary>
     public void Begin(bool autoplay = false)
     {
         Cancel();
-        _state = Fen.Parse(Fen.StartPosition, RuleSet.Standard);
-        Game.BeginGame(_state);
-        _state.ClearHistory();
-        _bartender = _factory.Create(AgentProfile.Casual);
-        _autoplay = autoplay ? _factory.Create(AgentProfile.Casual) : null;
+        _host = RunHost.Active;
+        if (_host?.Session?.State.ActiveEncounterId is { } id)
+        {
+            _session = _host.Session;
+            _encounterId = id;
+        }
+        else
+        {
+            // F6 remains a standalone preview, but follows the same command/replay path.
+            _host = null;
+            _encounterId = "bartender-preview";
+            _session = RunSession.Start(1, new RunDefinition
+            {
+                StartX = 0, Encounters = new()
+                {
+                    new() { Id = _encounterId, Kind = "bartender", X = 1, Y = 1,
+                        Parameters = RunJson.Data(new BattleParameters { Fen = Fen.StartPosition, StandardRules = true }) },
+                },
+            });
+            _session.Execute(RunCommand.Create("world.move", new WorldMove(1, 1)));
+        }
+        _autoplay = autoplay;
         _finished = false;
-        _sinceMove = 0;
+        _returnAfter = false;
+        Synchronize();
+        _readyForInput = !_finished;
+        _decisionStart = Stopwatch.GetTimestamp();
     }
-
-    public bool IsPlayerTurn() => !_finished && _autoplay == null && _thinking == null && _state.SideToMove == Side.White;
-
-    /// <summary>Every piece on the board: {id, square, symbol}, the symbol upper case for White (FEN letters).</summary>
+    public bool IsPlayerTurn() => _readyForInput && !_finished && !_autoplay && _state.SideToMove == Side.White;
+    public bool CanUndo() => _readyForInput && !_finished && Encounter().Data.As<BattleState>("battle").UndoPositions.Count > 0;
+    public bool IsMine(int square) => square >= 0 && square < _state.Area && IsPlayerTurn()
+        && _state.PieceAt(square) is { Side: Side.White };
     public Godot.Collections.Array<Godot.Collections.Dictionary> Pieces()
     {
         var list = new Godot.Collections.Array<Godot.Collections.Dictionary>();
-        foreach (var piece in _state.PiecesOnBoard())
-        {
-            char symbol = piece.Def.Symbol;
-            list.Add(new Godot.Collections.Dictionary
-            {
-                ["id"] = piece.Id,
-                ["square"] = piece.Square,
-                ["symbol"] = (piece.Side == Side.White ? char.ToUpperInvariant(symbol) : char.ToLowerInvariant(symbol)).ToString(),
-            });
-        }
+        foreach (var p in _state.PiecesOnBoard())
+            list.Add(new Godot.Collections.Dictionary { ["id"] = p.Id, ["square"] = p.Square,
+                ["symbol"] = (p.Side == Side.White ? char.ToUpperInvariant(p.Def.Symbol) : char.ToLowerInvariant(p.Def.Symbol)).ToString() });
         return list;
     }
-
-    /// <summary>Whether `square` holds one of your pieces that you could move now.</summary>
-    public bool IsMine(int square) =>
-        IsPlayerTurn() && _state.PieceAt(square) is { } piece && piece.Side == Side.White;
-
-    /// <summary>The squares your piece on `square` can move to; captures are flagged in `captures`.</summary>
-    public int[] Targets(int square)
+    private List<Move> Legal()
     {
-        if (!IsMine(square)) return System.Array.Empty<int>();
-        _legal.Clear();
-        MoveGenerator.GenerateLegal(_state, _legal);
-        return _legal.Where(m => m.From == square).Select(m => m.To).Distinct().ToArray();
+        var moves = new List<Move>();
+        MoveGenerator.GenerateLegal(_state, moves);
+        return moves;
     }
-
-    public bool IsCapture(int from, int to)
-    {
-        _legal.Clear();
-        MoveGenerator.GenerateLegal(_state, _legal);
-        return _legal.Any(m => m.From == from && m.To == to && m.IsCapture);
-    }
-
-    /// <summary>Play your move from `from` to `to` if it's legal (a pawn reaching the end becomes a queen).</summary>
-    public bool TryMove(int from, int to)
-    {
-        if (!IsMine(from)) return false;
-        _legal.Clear();
-        MoveGenerator.GenerateLegal(_state, _legal);
-        foreach (var move in _legal)
-            if (move.From == from && move.To == to)
-                return Play(move, false);
-        return false;
-    }
-
-    /// <summary>The square of the side-to-move's king if it stands in check, else -1.</summary>
+    public int[] Targets(int square) => IsMine(square)
+        ? Legal().Where(m => m.From == square).Select(m => m.To).Distinct().ToArray() : Array.Empty<int>();
+    public bool IsCapture(int from, int to) => Legal().Any(m => m.From == from && m.To == to && m.IsCapture);
     public int CheckedKing()
     {
-        var side = _state.SideToMove;
-        var king = _state.PiecesOnBoard(side).FirstOrDefault(p => p.Def.IsRoyal);
-        if (king == null) return -1;
-        var probe = _state.Clone();
-        probe.SetSideToMove(side.Opponent());
-        _legal.Clear();
-        MoveGenerator.GenerateLegal(probe, _legal);
-        return _legal.Any(m => m.To == king.Square) ? king.Square : -1;
+        if (!MoveGenerator.IsInCheck(_state, _state.SideToMove)) return -1;
+        return _state.PiecesOnBoard(_state.SideToMove).FirstOrDefault(p => p.Def.IsRoyal)?.Square ?? -1;
     }
-
-    public override void _Process(double delta)
+    public bool TryMove(int from, int to)
     {
-        if (_state == null || _finished) return;
-        _sinceMove += delta;
-        if (_thinking != null)
-        {
-            if (!_thinking.IsCompleted) return;
-            var task = _thinking;
-            _thinking = null;
-            if (task.IsFaulted || task.IsCanceled)
-            {
-                GD.PrintErr($"[Inn] the bartender's AI failed: {task.Exception?.GetBaseException()}");
-                return;
-            }
-            if (task.Result.Move is { } move) Play(move, _state.SideToMove == Side.Black);
-            return;
-        }
-        var agent = _state.SideToMove == Side.Black ? _bartender : _autoplay;
-        if (agent == null || _sinceMove < ReplyDelay) return;
-        if (Busy && _state.SideToMove == Side.Black) return;
-        var snapshot = _state.Clone();
+        if (!IsMine(from) || !Legal().Any(m => m.From == from && m.To == to)) return false;
+        return Submit(RunCommand.Create("battle.move", new BattleMove(from, to), _encounterId));
+    }
+    public bool Undo() => CanUndo() && Submit(RunCommand.Create("battle.undo", new { }, _encounterId));
+    public bool Leave()
+    {
+        if (_pending != null || _frames.Count > 0 || (!_readyForInput && !_finished)) return false;
+        if (_finished) { ReturnToWorld(); return true; }
+        _returnAfter = true;
+        return Submit(RunCommand.Create("battle.resign", new { }, _encounterId));
+    }
+    private bool Submit(RunCommand command)
+    {
+        if (!_readyForInput || _pending != null) return false;
+        long duration = (long)Stopwatch.GetElapsedTime(_decisionStart).TotalMilliseconds;
+        long revision = _session.Sequence;
+        _before = _session.State.Phase;
+        _readyForInput = false;
         _cancel = new CancellationTokenSource();
         var token = _cancel.Token;
-        _thinking = Task.Run(() => agent.Decide(snapshot, token));
-        if (_state.SideToMove == Side.Black) EmitSignal(SignalName.Thinking);
-    }
-
-    public override void _ExitTree() => Cancel();
-
-    private bool Play(Move move, bool byBartender)
-    {
-        var result = Game.PlayTurn(_state, move);
-        if (!result.Accepted)
-        {
-            GD.PrintErr($"[Inn] move {move} rejected: {result.RejectReason}");
-            return false;
-        }
-        _sinceMove = 0;
-        EmitSignal(SignalName.Moved, move.From, move.To, byBartender);
-        var outcome = _state.Rules.Evaluate(_state);
-        if (outcome != GameOutcome.Ongoing)
-        {
-            _finished = true;
-            EmitSignal(SignalName.Finished, outcome switch
-            {
-                GameOutcome.WhiteWins => "player",
-                GameOutcome.BlackWins => "bartender",
-                _ => "draw",
-            });
-        }
+        _pending = Task.Run(() => _session.Execute(command, duration, revision, token), token);
+        EmitSignal(SignalName.Thinking);
         return true;
     }
-
+    public override void _Process(double delta)
+    {
+        if (_state == null) return;
+        _sinceFrame += delta;
+        if (_pending != null)
+        {
+            if (!_pending.IsCompleted) return;
+            var task = _pending; _pending = null;
+            _cancel?.Dispose(); _cancel = null;
+            if (task.IsCanceled || task.IsFaulted)
+            {
+                _readyForInput = true;
+                EmitSignal(SignalName.Failed, task.Exception?.GetBaseException().Message ?? "Move cancelled.");
+                return;
+            }
+            var result = task.Result;
+            if (!result.Accepted)
+            {
+                _readyForInput = true;
+                EmitSignal(SignalName.Failed, result.Reason ?? "Move rejected.");
+                return;
+            }
+            _host?.NotifyCommit(_before, result);
+            foreach (var frame in result.Effects.OfType<BattleStep>()) _frames.Enqueue(frame);
+            _sinceFrame = 1;
+            if (_frames.Count == 0) { FinishPlayback(); return; }
+        }
+        if (_frames.Count > 0)
+        {
+            var next = _frames.Peek();
+            if (_sinceFrame < 0.65 || (next.ByEnemy && Busy)) return;
+            _frames.Dequeue();
+            _state = GameState.Restore(next.State, _catalog);
+            _sinceFrame = 0;
+            EmitSignal(SignalName.Moved, next.From, next.To, next.ByEnemy);
+            return;
+        }
+        if (!_readyForInput && !_finished && _sinceFrame >= 0.45) FinishPlayback();
+        if (_autoplay && _readyForInput && !_finished && _sinceFrame >= 0.8)
+        {
+            var agent = new AgentFactory().Create(AgentProfile.Novice with { TimeBudgetMs = 0, NodeBudget = 2000 });
+            if (agent.Decide(_state.Clone()).Move is { } move)
+                Submit(RunCommand.Create("battle.move", new BattleMove(move.From, move.To, move.Promotion), _encounterId));
+        }
+    }
+    private EncounterState Encounter() => _session.State.Encounters.Single(e => e.Definition.Id == _encounterId);
+    private void Synchronize()
+    {
+        var encounter = Encounter();
+        _state = GameState.Restore(encounter.Data.As<BattleState>("battle").Position, _catalog);
+        _finished = encounter.Status == EncounterStatus.Completed;
+    }
+    private void FinishPlayback()
+    {
+        Synchronize();
+        _readyForInput = !_finished;
+        _decisionStart = Stopwatch.GetTimestamp();
+        EmitSignal(SignalName.Refreshed);
+        if (_finished)
+        {
+            string winner = Encounter().Outcome ?? "draw";
+            EmitSignal(SignalName.Finished, winner == "enemy" ? "bartender" : winner);
+        }
+        if (_returnAfter) Callable.From(ReturnToWorld).CallDeferred();
+    }
+    private void ReturnToWorld()
+    {
+        if (_host != null) _host.ShowWorld();
+        else GetTree().ChangeSceneToFile("res://menu/MainMenu.tscn");
+    }
+    public override void _ExitTree() => Cancel();
     private void Cancel()
     {
         _cancel?.Cancel();
-        _cancel = null;
-        _thinking = null;
+        _frames.Clear();
+        if (_pending is { } task && _cancel is { } source) _ = task.ContinueWith(_ => source.Dispose(), TaskScheduler.Default);
+        else _cancel?.Dispose();
+        _cancel = null; _pending = null;
     }
 }

@@ -3,7 +3,7 @@ extends Node3D
 const AlleyWorld := preload("res://menu/alley_world.gd")
 const MenuSign := preload("res://menu/menu_sign.gd")
 const GAME_SCENE := "res://sandbox/Sandbox.tscn"
-const INN_SCENE := "res://inn/Inn.tscn"
+const RUN_SCENE := "res://run/Run.tscn"
 const SETTINGS_FILE := "user://menu_settings.cfg"
 const GAME_ARGUMENTS := ["scenario", "encounter", "seed", "white", "black"]
 const MENU_FPS_CAP := 60
@@ -25,6 +25,10 @@ var _base_fov := 46.0
 
 func _ready() -> void:
 	_previous_fps_cap = Engine.max_fps
+	for argument in OS.get_cmdline_user_args():
+		if argument.begins_with("--run-seed="):
+			_open_game.call_deferred(RUN_SCENE)
+			return
 	if _has_game_argument():
 		_open_game.call_deferred()
 		return
@@ -118,7 +122,7 @@ func _select(index: int) -> void:
 func _activate(index: int) -> void:
 	if not _settings_open:
 		if index == 0:
-			_open_game(INN_SCENE)
+			_open_game(RUN_SCENE)
 		else:
 			_show_settings(0)
 		return

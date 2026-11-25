@@ -20,6 +20,7 @@ public sealed class Catalog
     private readonly Dictionary<string, BoardEffectFactory> _boardEffects = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Func<Core.Side, RelicDef>> _relics = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ConsumableDef> _consumables = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, GlobalDef> _globals = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The standard pieces and the standard tile, under both their def ids and the prototype's names.</summary>
     public static Catalog CreateStandard()
@@ -33,6 +34,7 @@ public sealed class Catalog
     public Catalog AddPiece(PieceDef def, params string[] aliases) => Add(_pieces, def, def.Id, aliases);
     public Catalog AddTile(TileDef def, params string[] aliases) => Add(_tiles, def, def.Id, aliases);
     public Catalog AddAbility(AbilityDef def, params string[] aliases) => Add(_abilities, def, def.Id, aliases);
+    public Catalog AddGlobal(GlobalDef def, params string[] aliases) => Add(_globals, def, def.Id, aliases);
 
     /// <summary>Register a board-effect factory under the effect type used in map files (e.g. "WindGust").</summary>
     public Catalog AddBoardEffect(string effectType, BoardEffectFactory factory)
@@ -55,6 +57,7 @@ public sealed class Catalog
     public PieceDef? FindPiece(string id) => _pieces.GetValueOrDefault(id);
     public TileDef? FindTile(string id) => _tiles.GetValueOrDefault(id);
     public AbilityDef? FindAbility(string id) => _abilities.GetValueOrDefault(id);
+    public GlobalDef? FindGlobal(string id) => _globals.GetValueOrDefault(id);
     public BoardEffectFactory? FindBoardEffect(string type) => _boardEffects.GetValueOrDefault(type);
     public Func<Core.Side, RelicDef>? FindRelic(string id) => _relics.GetValueOrDefault(id);
     public ConsumableDef? FindConsumable(string id) => _consumables.GetValueOrDefault(id);
