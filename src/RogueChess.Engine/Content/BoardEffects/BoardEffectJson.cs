@@ -57,9 +57,11 @@ public static class BoardEffectJson
             case "WindGust":
                 return new WindGustEffect(SideParam(p, "targetPlayer"), Int(p, "freezeDuration", 2));
             case "CheckerboardWipe":
-                var color = string.Equals(String(p, "targetColor"), "black", StringComparison.OrdinalIgnoreCase)
-                    ? SquareColor.Black
-                    : SquareColor.White;
+                // Prototype: missing means "white"; any value other than "white" (any case) behaves as black.
+                var colorText = String(p, "targetColor");
+                var color = colorText == null || string.Equals(colorText, "white", StringComparison.OrdinalIgnoreCase)
+                    ? SquareColor.White
+                    : SquareColor.Black;
                 return new CheckerboardWipeEffect(color, Int(p, "freezeDuration", 2), Bool(p, "alternating", false));
             case var other:
                 throw new FormatException($"unknown board effect '{other}'");
