@@ -145,10 +145,10 @@ public class CasterTests
         int d4 = Sq(s, "d4");
         foreach (var bad in new[]
         {
-            new Move(d4, Sq(s, "d5"), MoveFlags.Cast, Aux: 0), // B11: guardian tile
-            new Move(d4, Sq(s, "d7"), MoveFlags.Cast, Aux: 0), // out of range
-            new Move(d4, Sq(s, "b6"), MoveFlags.Cast, Aux: 3), // no such ability
-            new Move(Sq(s, "a1"), Sq(s, "a2"), MoveFlags.Cast, Aux: 0), // the king has no cast
+            new Move(d4, Sq(s, "d5"), MoveFlags.Ability | MoveFlags.Cast, Aux: 0), // B11: guardian tile
+            new Move(d4, Sq(s, "d7"), MoveFlags.Ability | MoveFlags.Cast, Aux: 0), // out of range
+            new Move(d4, Sq(s, "b6"), MoveFlags.Ability | MoveFlags.Cast, Aux: 3), // no such ability
+            new Move(Sq(s, "a1"), Sq(s, "a2"), MoveFlags.Ability | MoveFlags.Cast, Aux: 0), // the king has no cast
         })
         {
             var result = Game.PlayTurn(s, bad);

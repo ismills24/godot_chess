@@ -101,8 +101,9 @@ public static class Game
     /// </summary>
     private static void BuildActionProposals(GameState s, Move m, Piece mover, List<Proposal> into)
     {
-        if (m.Is(MoveFlags.Cast))
+        if (m.Is(MoveFlags.Ability))
         {
+            // An ability's own action (cast, ranged shot...): the ability builds the proposals and is their source.
             BuildAbilityActionProposals(s, m, mover, into);
             return;
         }

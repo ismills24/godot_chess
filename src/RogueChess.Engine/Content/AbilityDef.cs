@@ -47,7 +47,7 @@ public abstract class AbilityDef : Behavior
     public virtual bool Immobilizes(AbilityInstance self) => false;
 
     /// <summary>
-    /// Turn an action this ability generated (a <see cref="MoveFlags.Cast"/> move whose <c>Aux</c> is this
+    /// Turn an action this ability generated (a <see cref="MoveFlags.Ability"/> move whose <c>Aux</c> is this
     /// ability's index) into the action's wave-0 proposals. The engine stamps this ability as their source.
     /// Proposing nothing rejects the action.
     /// </summary>

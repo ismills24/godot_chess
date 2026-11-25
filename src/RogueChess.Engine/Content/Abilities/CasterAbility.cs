@@ -75,7 +75,7 @@ public sealed class CasterAbility : AbilityDef
             if (!board.InBounds(x, y)) continue;
             int sq = board.Sq(x, y);
             if (!CanTarget(board, sq) || CanMoveTo(moves, firstIndex, end, sq)) continue;
-            moves.Add(new Move(piece.Square, sq, MoveFlags.Cast, Aux: index));
+            moves.Add(new Move(piece.Square, sq, MoveFlags.Ability | MoveFlags.Cast, Aux: index));
         }
     }
 
@@ -97,7 +97,7 @@ public sealed class CasterAbility : AbilityDef
     private static bool CanMoveTo(List<Move> moves, int first, int end, int sq)
     {
         for (int i = first; i < end; i++)
-            if (moves[i].To == sq && !moves[i].Is(MoveFlags.Cast)) return true;
+            if (moves[i].To == sq && !moves[i].Is(MoveFlags.Ability)) return true;
         return false;
     }
 }

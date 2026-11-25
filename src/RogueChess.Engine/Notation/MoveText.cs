@@ -5,7 +5,8 @@ using RogueChess.Engine.Rules;
 
 namespace RogueChess.Engine.Notation;
 
-/// <summary>Square names ("e4") and coordinate move strings ("e2e4", "e7e8q", "c1e3@fire-mage") for any board up to 26 files.</summary>
+/// <summary>Square names ("e4") and coordinate move strings ("e2e4", "e7e8q", and "a1a4@marksman" or
+/// "c1e3@fire-mage" for an ability action) for any board up to 26 files.</summary>
 public static class MoveText
 {
     public static string SquareName(IBoardView s, int sq)
@@ -27,11 +28,9 @@ public static class MoveText
     {
         string text = SquareName(s, m.From) + SquareName(s, m.To);
         if (m.Is(MoveFlags.Promotion)) text += s.Rules.PromotionOptions[m.Promotion].Symbol;
-        if (m.Is(MoveFlags.Cast))
-        {
-            var abilities = s.PieceAt(m.From)?.Abilities;
-            text += "@" + (abilities != null && (uint)m.Aux < (uint)abilities.Count ? abilities[m.Aux].Def.Id : "?");
-        }
+        // Ability actions name their ability, so they differ from the plain move to the same square ("a1a4@marksman").
+        if (m.Is(MoveFlags.Ability) && s.PieceAt(m.From) is { } p && m.Aux >= 0 && m.Aux < p.Abilities.Count)
+            text += "@" + p.Abilities[m.Aux].Def.Id;
         return text;
     }
 

@@ -23,6 +23,9 @@ public static class ContentLibrary
             .AddAbility(CasterAbility.FireMage, "FireMage")
             .AddAbility(CasterAbility.FreezeMage, "FreezeMage")
             .AddAbility(CasterAbility.WallPlacement, "WallPlacement")
+            .AddAbility(PiercingAbility.Instance, "Piercing")
+            .AddAbility(BouncerAbility.Instance, "Bouncer")
+            .AddAbility(MarksmanAbility.Instance, "Marksman")
             // tiles
             .AddTile(WallTile.Instance, "WallTile")
             .AddTile(GuardianTile.Instance, "GuardianTile")
