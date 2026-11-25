@@ -24,6 +24,18 @@ public sealed class FrozenAbility : AbilityDef
 
     public override int[] InitialVars() => new[] { DefaultTurns };
 
+    /// <summary>
+    /// Freeze <paramref name="piece"/> for <paramref name="turns"/> from a trigger reacting to <c>TurnEnded</c>
+    /// (board effects). A piece that is already frozen and whose owner's turn is ending is ticked in that same wave,
+    /// after the merge; the extra turn compensates, so the result is max(old − 1, turns) as in the prototype, where
+    /// the new Frozen wrap isn't ticked by the turn end that created it. A piece that isn't frozen yet has no tick.
+    /// </summary>
+    public static Proposal FreezeAtTurnEnd(IBoardView board, Piece piece, int turns, string cause)
+    {
+        bool ticksThisWave = piece.Side == board.SideToMove && piece.HasAbility(Instance);
+        return Proposal.AddAbility(piece, Instance, cause, ticksThisWave ? turns + 1 : turns);
+    }
+
     public override bool Immobilizes(AbilityInstance self) => self.Var(TurnsLeftVar) > 0;
 
     public override FactKinds Triggers => FactKinds.TurnEnded | FactKinds.VarChanged;

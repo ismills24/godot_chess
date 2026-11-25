@@ -82,8 +82,8 @@ public sealed class WindGustEffect : BoardEffect
             }
             else
             {
-                ctx.Propose(Proposal.AddAbility(furthest, FrozenAbility.Instance, FreezeCause, FreezeDuration));
-                ctx.Propose(Proposal.AddAbility(blocker, FrozenAbility.Instance, FreezeCause, FreezeDuration));
+                ctx.Propose(FrozenAbility.FreezeAtTurnEnd(board, furthest, FreezeDuration, FreezeCause));
+                ctx.Propose(FrozenAbility.FreezeAtTurnEnd(board, blocker, FreezeDuration, FreezeCause));
             }
         }
     }
