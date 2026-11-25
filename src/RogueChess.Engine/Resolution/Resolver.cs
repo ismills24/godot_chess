@@ -215,6 +215,25 @@ internal sealed class Resolver
                     def.OnFact(_tctx, fact);
                 }
             }
+
+            // Kill credit reaches the killer even if it is no longer on the board (it died in the same wave,
+            // or the kill came from its own death trigger, e.g. an explosion). Last-known information, as above.
+            if (fact.Kind == FactKinds.Killed && fact.Source.Category == SourceCategory.Piece
+                && fact.Source.Piece is { IsOnBoard: false } killer)
+            {
+                if ((killer.Def.Triggers & FactKinds.Killed) != 0)
+                {
+                    _tctx.SetSelf(SourceRef.ForPiece(killer, -1, fact.Source.Square));
+                    killer.Def.OnFact(_tctx, fact);
+                }
+                for (int a = 0; a < killer.Abilities.Count; a++)
+                {
+                    var def = killer.Abilities[a].Def;
+                    if ((def.Triggers & FactKinds.Killed) == 0) continue;
+                    _tctx.SetSelf(SourceRef.ForPiece(killer, a, fact.Source.Square));
+                    def.OnFact(_tctx, fact);
+                }
+            }
         }
     }
 
@@ -542,7 +561,7 @@ internal sealed class Resolver
         if (_varChanges.Count > 0)
         foreach (var ((target, slot), change) in _varChanges.OrderBy(kv => kv.Key.Target.Kind).ThenBy(kv => kv.Key.Target.PieceId)
                      .ThenBy(kv => kv.Key.Target.Ability?.Id ?? "", StringComparer.Ordinal).ThenBy(kv => kv.Key.Target.Square)
-                     .ThenBy(kv => kv.Key.Target.GlobalIndex).ThenBy(kv => kv.Key.Slot))
+                     .ThenBy(kv => kv.Key.Target.GlobalIndex).ThenBy(kv => kv.Key.Target.Side).ThenBy(kv => kv.Key.Slot))
         {
             if (!TryReadVar(s, target, slot, out int current, out var owner)) { Note(wt, $"var {target}[{slot}] dropped: target gone"); continue; }
             int value = (change.SetProposal >= 0 ? _batch[change.SetProposal].Value : current) + change.Sum;
@@ -553,8 +572,17 @@ internal sealed class Resolver
         }
 
         // ---- 7. clock
-        if (clockWhite != 0) _newFacts.Add(new Fact(FactKinds.ClockChanged) { Side = Side.White, NewValue = clockWhite });
-        if (clockBlack != 0) _newFacts.Add(new Fact(FactKinds.ClockChanged) { Side = Side.Black, NewValue = clockBlack });
+        // Deltas are accumulated in the state (GameState.ClockMs) for the host's real-time clock.
+        if (clockWhite != 0)
+        {
+            s.AddClock(Side.White, clockWhite);
+            _newFacts.Add(new Fact(FactKinds.ClockChanged) { Side = Side.White, NewValue = clockWhite });
+        }
+        if (clockBlack != 0)
+        {
+            s.AddClock(Side.Black, clockBlack);
+            _newFacts.Add(new Fact(FactKinds.ClockChanged) { Side = Side.Black, NewValue = clockBlack });
+        }
     }
 
     /// <summary>Keys in ascending order, in a reused buffer (iterate it fully before calling again).</summary>
@@ -614,6 +642,12 @@ internal sealed class Resolver
                 value = g.Var(slot);
                 return true;
             }
+            case VarTargetKind.Side:
+            {
+                if (slot != VarTarget.ExtraTurnsSlot) return false;
+                value = s.ExtraTurns(target.Side);
+                return true;
+            }
             default:
                 return false;
         }
@@ -632,6 +666,9 @@ internal sealed class Resolver
                 break;
             case VarTargetKind.Global:
                 s.SetGlobalVar(target.GlobalIndex, slot, value);
+                break;
+            case VarTargetKind.Side:
+                s.SetExtraTurns(target.Side, Math.Max(0, value));
                 break;
         }
     }

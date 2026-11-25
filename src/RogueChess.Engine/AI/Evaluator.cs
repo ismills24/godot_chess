@@ -93,6 +93,11 @@ public sealed class WeightedEvaluator : IEvaluator
             white += p.Side == Side.White ? v : -v;
         }
 
+        // Unused consumables are worth their value, so the search only spends one when it gains more.
+        foreach (var g in s.Globals)
+            if (g.Def is Content.ConsumableDef c)
+                white += c.Value * _w.Material * (g.Var(Content.ConsumableDef.ChargesVar(Side.White)) - g.Var(Content.ConsumableDef.ChargesVar(Side.Black)));
+
         int score = s.SideToMove == Side.White ? white : -white;
         return score + _w.Tempo;
     }

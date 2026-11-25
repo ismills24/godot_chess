@@ -20,8 +20,14 @@ public static class MoveText
         return s.Sq(x, y);
     }
 
+    /// <summary>"e2e4", "e7e8q"; a consumable use is "use:fortify-potion@a3" (or "use:extra-turn-potion" untargeted).</summary>
     public static string Format(GameState s, Move m)
     {
+        if (m.IsConsumable)
+        {
+            string id = m.Aux >= 0 && m.Aux < s.Globals.Count ? s.Globals[m.Aux].Def.Id : $"global{m.Aux}";
+            return m.To >= 0 ? $"use:{id}@{SquareName(s, m.To)}" : $"use:{id}";
+        }
         string text = SquareName(s, m.From) + SquareName(s, m.To);
         if (m.Is(MoveFlags.Promotion)) text += s.Rules.PromotionOptions[m.Promotion].Symbol;
         return text;

@@ -10,7 +10,8 @@ How to add pieces, abilities and tiles. Read [RESOLUTION_RULES.md](RESOLUTION_RU
 | Abilities | `src/RogueChess.Engine/Content/Abilities/` |
 | Tiles | `src/RogueChess.Engine/Content/Tiles/` |
 | Registration (map ids, sandbox palette) | `src/RogueChess.Engine/Content/ContentLibrary.cs` |
-| Tests | `tests/RogueChess.Engine.Tests/ContentTests.cs` |
+| Relics, consumables | `src/RogueChess.Engine/Content/Relics/`, `Content/Consumables/` |
+| Tests | `tests/RogueChess.Engine.Tests/ContentTests.cs` (`RunContentTests.cs` for relics, consumables, clock) |
 | Sandbox scenarios | `tools/make_scenarios.py` → `maps/sandbox/*.json` |
 
 Every new def needs one line in `ContentLibrary.CreateCatalog()`. That makes it loadable from map files and shows it in the sandbox palette.
@@ -168,6 +169,40 @@ Map format (same as the prototype):
 | `WallsPlacement` | `wallCount` (1): random empty, non-wall squares become walls |
 | `WindGust` | `targetPlayer` ("white"), `freezeDuration` (2): in each file, that side's highest piece moves down a rank; if blocked, it and the blocker freeze |
 | `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
+
+## Recipe 8: a relic, a consumable, the clock
+
+**Relics** (`Content/Relics/`) subclass `RelicDef`, a `GlobalDef` with an `Owner`; build one instance per side
+(`TimeBankRelic.For(side)`, id `"time-bank:white"`) and add it with `state.AddGlobal(def)`. They are ordinary global
+triggers, so they run in AI search, and any state goes in global variables. Register with
+`.AddRelic("time-bank", TimeBankRelic.For, "TimeBankRelic")`.
+
+**Consumables** (`Content/Consumables/`) subclass `ConsumableDef`. One global per kind holds both sides' charges
+(`ConsumableDef.ChargesVar(side)`); give them with `def.Give(state, white, black)`. Override `Use(board, owner, target, into)`
+to propose the effect (return false for an invalid use; the engine spends the charge) and, for targeted ones,
+`GenerateTargets` to offer only useful targets (each becomes a `Move.UseConsumable(globalIndex, target)` the AI also
+searches). A use is a free action: the same side acts again. Grant extra turns with
+`Proposal.AddVar(VarTarget.OfSide(side), VarTarget.ExtraTurnsSlot, 1, cause)`. `Value` tells the AI what an unused
+charge is worth. Register with `.AddConsumable(def, "PrototypeId")`.
+
+**Clock.** Content proposes `Proposal.Clock(side, deltaMs, cause)` (ChronoCapture, TimeBank). The engine sums them into
+`GameState.ClockMs(side)` (undone with the state, not hashed), and `Game.PlayTurn` reports the turn's change in
+`TurnResult.ClockDeltaMs(side)`. The host owns the real-time countdown: subtract elapsed time, add the reported deltas.
+
+Maps may list them (an extension; the prototype kept them in the run state):
+
+```json
+"relics": [{ "id": "TimeBankRelic", "owner": "White" }],
+"consumables": [{ "id": "FortifyPotion", "owner": "White", "charges": 1 }]
+```
+
+| Content | Behaviour |
+|---|---|
+| `ChronoCapture` (ability) | +5 s to its side for every enemy kill credited to the piece (captures, ranged, its own explosion) |
+| `TimeBankRelic` | +3 s to the owner after each of its own piece moves |
+| `RoyalPromotionRelic` | an owner's non-royal, non-pawn piece reaching its last rank becomes a Queen (abilities kept) |
+| `ExtraTurnPotion` | free action: bank one extra turn |
+| `FortifyPotion` | free action: every empty, non-wall cell in the target's row becomes a wall |
 
 ## Testing a new piece
 

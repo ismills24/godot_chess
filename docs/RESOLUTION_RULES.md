@@ -47,6 +47,10 @@ Turn start runs as the turn passes, so the next side's legal moves already refle
 
 Each resolution settles completely before the next one starts.
 
+**Extra turns.** If the mover has banked extra turns (`GameState.ExtraTurns(side)`, raised by `AddVar(VarTarget.OfSide(side), ExtraTurnsSlot, n)`) when its turn ends, step 3 spends one and gives the turn back to the same side; turn start then runs for that side. It still counts as a ply.
+
+**Free actions.** Using a consumable (§7) resolves only step 1: no turn end, no pass, no ply. The same side then chooses again.
+
 ---
 
 ## 4. Inputs and purity
@@ -103,7 +107,7 @@ After conflict resolution, no two proposals in the same category touch the same 
 
 The engine records what the commit did as facts: `Died`, `Killed`, `Moved`, `Spawned` (also used for revives), `Collided`, `PieceChanged`, `TileChanged`, `VarChanged`, `ClockChanged`, plus the phase facts `TurnStarted` / `TurnEnded`. "A piece entered square X" is a `Moved` with `To = X` or a `Spawned` at X (`Fact.Square` gives that square). Field usage per kind is documented on `Fact`.
 
-**Last-known information:** facts about a piece that left the board carry its def, abilities, owner, and square as they were in the snapshot. A dead piece's own death triggers ("when I die…") fire in the next wave using that information. A dead piece can't do anything else.
+**Last-known information:** facts about a piece that left the board carry its def, abilities, owner, and square as they were in the snapshot. A dead piece's own death triggers ("when I die…") fire in the next wave using that information, and so do its kill-credit triggers (`Killed` with the dead piece as the source, e.g. the victims of its own explosion, or a kill it made in the wave it died). A dead piece can't do anything else.
 
 If any facts were produced, the next wave starts. Otherwise the resolution is over.
 
@@ -120,7 +124,7 @@ If any facts were produced, the next wave starts. Otherwise the resolution is ov
 | `ChangeTile(square, def)` | Two different changes to one square: canonical order picks one. |
 | `AddVar(target, name, delta)` | **Deltas sum**, so the result doesn't depend on order. Counters such as charges and timers always use deltas. |
 | `SetVar(target, name, value)` | Two different values for one variable: canonical order picks one. Prefer `AddVar` wherever possible. |
-| `Clock(side, deltaMs)` | Deltas sum. |
+| `Clock(side, deltaMs)` | Deltas sum. The sum is added to `GameState.ClockMs(side)` (undoable, not hashed) and reported as `ClockChanged` and in `TurnResult.ClockDeltaMs(side)`. The real-time clock lives outside the engine and consumes these. |
 
 ---
 
@@ -134,7 +138,7 @@ An action becomes ordinary proposals. There are no special compound events.
 | Capture | `Destroy(target, source = mover, cause = capture)` + `Move(mover, to)`. The move succeeds because the occupant is destroyed in the same wave (§6). |
 | Ranged attack (e.g. Marksman) | `Destroy(target, source = attacker, cause = ranged)` + `AddVar(attacker, charges, -1)` |
 | Cast (e.g. FireMage) | `ChangeTile(target, def)` (+ cost vars) |
-| Use consumable | Whatever the consumable's definition returns |
+| Use consumable | Whatever the consumable's definition returns + `AddVar(consumable global, charges of the side, -1)`. A free action (§3) |
 
 Ranged attacks and melee captures are **separate actions**, so the player always chooses between them. This fixes the TS Marksman bug. (M2 implements the move actions: quiet moves, captures, en passant, castling as two simultaneous moves, and promotion. Ranged, cast and consumable actions arrive with their content in M3.)
 

@@ -1,5 +1,7 @@
 using RogueChess.Engine.Content.Abilities;
 using RogueChess.Engine.Content.BoardEffects;
+using RogueChess.Engine.Content.Consumables;
+using RogueChess.Engine.Content.Relics;
 using RogueChess.Engine.Content.Tiles;
 
 namespace RogueChess.Engine.Content;
@@ -19,10 +21,16 @@ public static class ContentLibrary
             .AddAbility(PhantomAbility.Instance, "Phantom")
             .AddAbility(PredatorAbility.Instance, "Predator")
             .AddAbility(FrozenAbility.Instance, "Frozen")
+            .AddAbility(ChronoCaptureAbility.Instance, "ChronoCapture")
             // tiles
             .AddTile(WallTile.Instance, "WallTile")
             .AddTile(GuardianTile.Instance, "GuardianTile")
             .AddTile(FogTile.Instance, "FogTile")
+            // relics (built per owner) and consumables, under the prototype's ids
+            .AddRelic("time-bank", TimeBankRelic.For, "TimeBankRelic")
+            .AddRelic("royal-promotion", RoyalPromotionRelic.For, "RoyalPromotionRelic")
+            .AddConsumable(ExtraTurnPotion.Instance, "ExtraTurnPotion")
+            .AddConsumable(FortifyPotion.Instance, "FortifyPotion")
             // board effects (WallsPlacement, WindGust, CheckerboardWipe) and their conditions
             .AddBoardEffects();
     }

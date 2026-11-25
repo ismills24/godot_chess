@@ -24,6 +24,9 @@ public sealed class GameState : IBoardView
     private readonly Dictionary<int, Piece> _pieces = new();
     private readonly List<GlobalInstance> _globals = new();
     private readonly List<UndoEntry> _undo = new();
+    private readonly int[] _extraTurns = new int[2];
+    private readonly int[] _clockMs = new int[2];
+    private readonly List<PlayedAction> _history = new();
     private int _nextPieceId = 1;
 
     public GameState(int width, int height, RuleSet rules)
@@ -58,6 +61,25 @@ public sealed class GameState : IBoardView
     public ulong RandomState { get; private set; }
 
     public IReadOnlyList<GlobalInstance> Globals => _globals;
+
+    /// <summary>
+    /// Extra turns banked by <paramref name="side"/> (the plan's <c>Turn.extraTurns</c>): when that side's turn
+    /// ends with a positive count, one is spent and the same side moves again. Hashed and undoable.
+    /// Content grants them with <c>Proposal.AddVar(VarTarget.OfSide(side), VarTarget.ExtraTurnsSlot, n, ...)</c>.
+    /// </summary>
+    public int ExtraTurns(Side side) => _extraTurns[(int)side];
+
+    /// <summary>
+    /// Total clock time (ms) the engine has granted (positive) or taken (negative) from <paramref name="side"/> so
+    /// far: the sum of every committed <c>Proposal.Clock</c>. Deterministic and undoable, so a real-time clock
+    /// outside the engine reads it (or <see cref="Resolution.TurnResult.ClockDeltaMs"/> per turn) instead of
+    /// counting events. Not part of <see cref="Hash"/>: rules never depend on it, so search positions that differ
+    /// only in clock time still transpose.
+    /// </summary>
+    public int ClockMs(Side side) => _clockMs[(int)side];
+
+    /// <summary>Every action accepted by <see cref="Resolution.Game.PlayTurn"/> since setup, oldest first. Undone with the rest of the state.</summary>
+    public IReadOnlyList<PlayedAction> History => _history;
 
     /// <summary>64-bit Zobrist hash of the position, maintained incrementally.</summary>
     public ulong Hash { get; private set; }
@@ -241,6 +263,25 @@ public sealed class GameState : IBoardView
         RawSetTurn(side, ply);
     }
 
+    internal void SetExtraTurns(Side side, int count)
+    {
+        _undo.Add(new UndoEntry(OpKind.ExtraTurns, a: (int)side, b: _extraTurns[(int)side]));
+        RawSetExtraTurns(side, count);
+    }
+
+    internal void AddClock(Side side, int deltaMs)
+    {
+        if (deltaMs == 0) return;
+        _undo.Add(new UndoEntry(OpKind.Clock, a: (int)side, b: _clockMs[(int)side]));
+        _clockMs[(int)side] += deltaMs;
+    }
+
+    internal void RecordAction(in PlayedAction played)
+    {
+        _undo.Add(new UndoEntry(OpKind.History));
+        _history.Add(played);
+    }
+
     internal void SetEnPassant(int sq)
     {
         _undo.Add(new UndoEntry(OpKind.EnPassant, a: EnPassantSquare));
@@ -323,6 +364,15 @@ public sealed class GameState : IBoardView
                 case OpKind.Random:
                     RawSetRandom(e.U);
                     break;
+                case OpKind.ExtraTurns:
+                    RawSetExtraTurns((Side)e.A, e.B);
+                    break;
+                case OpKind.Clock:
+                    _clockMs[e.A] = e.B;
+                    break;
+                case OpKind.History:
+                    _history.RemoveAt(_history.Count - 1);
+                    break;
             }
         }
         _undo.RemoveRange(mark, _undo.Count - mark);
@@ -388,6 +438,12 @@ public sealed class GameState : IBoardView
         EnPassantSquare = sq;
     }
 
+    private void RawSetExtraTurns(Side side, int count)
+    {
+        Hash ^= ExtraTurnsHash(side, _extraTurns[(int)side]) ^ ExtraTurnsHash(side, count);
+        _extraTurns[(int)side] = count;
+    }
+
     private void RawSetRandom(ulong value)
     {
         Hash ^= RandomHash(RandomState) ^ RandomHash(value);
@@ -438,13 +494,17 @@ public sealed class GameState : IBoardView
     private static ulong EnPassantHash(int sq)
         => sq < 0 ? 0 : Zobrist.Key(Zobrist.EnPassantCategory, (ulong)sq);
 
+    private static ulong ExtraTurnsHash(Side side, int count)
+        => count == 0 ? 0 : Zobrist.Key(Zobrist.ExtraTurnsCategory, (ulong)side, (ulong)(uint)count);
+
     private static ulong RandomHash(ulong state)
         => state == 0 ? 0 : Zobrist.Key(Zobrist.RandomCategory, state);
 
     /// <summary>Recompute the hash from nothing. Used to verify the incremental hash.</summary>
     public ulong ComputeHashFromScratch()
     {
-        ulong h = SideHash(SideToMove) ^ EnPassantHash(EnPassantSquare) ^ RandomHash(RandomState);
+        ulong h = SideHash(SideToMove) ^ EnPassantHash(EnPassantSquare) ^ RandomHash(RandomState)
+                ^ ExtraTurnsHash(Side.White, _extraTurns[0]) ^ ExtraTurnsHash(Side.Black, _extraTurns[1]);
         for (int sq = 0; sq < _board.Length; sq++)
         {
             if (_board[sq] is { } p) h ^= PieceHash(p, sq);
@@ -473,6 +533,9 @@ public sealed class GameState : IBoardView
         c.Ply = Ply;
         c.EnPassantSquare = EnPassantSquare;
         c.RandomState = RandomState;
+        _extraTurns.CopyTo(c._extraTurns, 0);
+        _clockMs.CopyTo(c._clockMs, 0);
+        c._history.AddRange(_history);
         c.Hash = Hash;
         return c;
     }
@@ -498,6 +561,11 @@ public sealed class GameState : IBoardView
             sb.Append($"off:{DescribePiece(p)}\n");
         foreach (var g in _globals)
             sb.Append($"global:{g}\n");
+        for (int i = 0; i < 2; i++)
+        {
+            if (_extraTurns[i] != 0) sb.Append($"extra-turns:{(Side)i}={_extraTurns[i]}\n");
+            if (_clockMs[i] != 0) sb.Append($"clock:{(Side)i}={_clockMs[i]}\n");
+        }
         return sb.ToString();
     }
 
@@ -513,6 +581,7 @@ public sealed class GameState : IBoardView
     {
         Spawn, Remove, Put, Move, MovesMade, Def, AddAbility, RemoveAbility, AbilityVar,
         Tile, TileVar, AddGlobal, GlobalVar, Turn, EnPassant, Random,
+        ExtraTurns, Clock, History,
     }
 
     private readonly struct UndoEntry

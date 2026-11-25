@@ -9,7 +9,17 @@ namespace RogueChess.Engine.Resolution;
 /// <param name="Accepted">False if the action's resolution hit the watchdog; the state is then unchanged.</param>
 /// <param name="RejectReason">Why the action was rejected.</param>
 /// <param name="Trace">Wave-by-wave trace, when requested.</param>
-public readonly record struct TurnResult(bool Accepted, string? RejectReason, TurnTrace? Trace);
+public readonly record struct TurnResult(bool Accepted, string? RejectReason, TurnTrace? Trace)
+{
+    /// <summary>Clock time (ms) the engine granted White during this turn (negative = taken). See <see cref="GameState.ClockMs"/>.</summary>
+    public int WhiteClockDeltaMs { get; init; }
+
+    /// <summary>Clock time (ms) the engine granted Black during this turn (negative = taken).</summary>
+    public int BlackClockDeltaMs { get; init; }
+
+    /// <summary>Clock time (ms) the engine granted <paramref name="side"/> during this turn.</summary>
+    public int ClockDeltaMs(Side side) => side == Side.White ? WhiteClockDeltaMs : BlackClockDeltaMs;
+}
 
 /// <summary>
 /// The one code path for playing turns, used by the UI, the tests and the AI alike.
@@ -43,17 +53,36 @@ public static class Game
         var trace = options.Trace ? new TurnTrace() : null;
         int mark = state.UndoDepth;
         var side = state.SideToMove;
+        int whiteClock = state.ClockMs(Side.White), blackClock = state.ClockMs(Side.Black);
 
         if (!ResolveAction(state, action, options, trace, out var reason))
         {
             state.UndoTo(mark);
             return new TurnResult(false, reason, trace);
         }
+        state.RecordAction(new PlayedAction(side, state.Ply, action));
 
-        RunTurnPhase(state, TurnEndPhase, new Fact(FactKinds.TurnEnded) { Side = side }, options, trace);
-        state.SetTurn(side.Opponent(), state.Ply + 1);
-        RunTurnPhase(state, TurnStartPhase, new Fact(FactKinds.TurnStarted) { Side = side.Opponent() }, options, trace);
-        return new TurnResult(true, null, trace);
+        // A consumable is a free action (as in the prototype): no turn end, and the same side acts again.
+        if (!action.IsConsumable)
+        {
+            RunTurnPhase(state, TurnEndPhase, new Fact(FactKinds.TurnEnded) { Side = side }, options, trace);
+            var next = side.Opponent();
+            int extra = state.ExtraTurns(side);
+            if (extra > 0)
+            {
+                // Extra turn: spend one and give the same side a fresh turn (it still counts as a ply).
+                state.SetExtraTurns(side, extra - 1);
+                next = side;
+            }
+            state.SetTurn(next, state.Ply + 1);
+            RunTurnPhase(state, TurnStartPhase, new Fact(FactKinds.TurnStarted) { Side = next }, options, trace);
+        }
+
+        return new TurnResult(true, null, trace)
+        {
+            WhiteClockDeltaMs = state.ClockMs(Side.White) - whiteClock,
+            BlackClockDeltaMs = state.ClockMs(Side.Black) - blackClock,
+        };
     }
 
     /// <summary>
@@ -61,6 +90,13 @@ public static class Game
     /// </summary>
     internal static bool ResolveAction(GameState state, Move action, in ResolveOptions options, TurnTrace? trace, out string? failure)
     {
+        if (action.IsConsumable) return ResolveConsumable(state, action, options, trace, out failure);
+        if (action.From < 0 || action.From >= state.Area)
+        {
+            failure = $"bad source square {action.From}";
+            return false;
+        }
+
         var mover = state.PieceAt(action.From);
         if (mover == null)
         {
@@ -88,6 +124,49 @@ public static class Game
             : -1;
         if (enPassant != state.EnPassantSquare) state.SetEnPassant(enPassant);
         return true;
+    }
+
+    /// <summary>
+    /// Use a consumable: its definition's proposals plus one charge spent, resolved as the action. The side to
+    /// move must hold a charge and the use must be valid (e.g. a target when one is required).
+    /// </summary>
+    private static bool ResolveConsumable(GameState state, Move action, in ResolveOptions options, TurnTrace? trace, out string? failure)
+    {
+        int index = action.Aux;
+        var side = state.SideToMove;
+        if (index < 0 || index >= state.Globals.Count || state.Globals[index].Def is not ConsumableDef def)
+        {
+            failure = $"no consumable in global {index}";
+            return false;
+        }
+        if (state.Globals[index].Var(ConsumableDef.ChargesVar(side)) <= 0)
+        {
+            failure = $"{side} has no {def.Name} left";
+            return false;
+        }
+        if (action.To < -1 || action.To >= state.Area)
+        {
+            failure = $"bad consumable target {action.To}";
+            return false;
+        }
+
+        var proposals = new List<Proposal>(8);
+        if (!def.Use(state, side, action.To, proposals))
+        {
+            failure = $"{def.Name} can't be used like that";
+            return false;
+        }
+        var source = SourceRef.ForGlobal(def, index);
+        for (int i = 0; i < proposals.Count; i++) proposals[i] = proposals[i] with { Source = source };
+        proposals.Add(Proposal.AddVar(VarTarget.OfGlobal(index), ConsumableDef.ChargesVar(side), -1, ConsumableDef.UsedCause) with { Source = source });
+
+        ResolutionTrace? rt = null;
+        if (trace != null)
+        {
+            rt = new ResolutionTrace(ActionPhase);
+            trace.Resolutions.Add(rt);
+        }
+        return Resolver.Rent().Resolve(state, ActionPhase, null, proposals, ActionInfo.None, options, rt, out failure);
     }
 
     /// <summary>

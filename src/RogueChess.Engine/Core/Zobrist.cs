@@ -19,6 +19,7 @@ internal static class Zobrist
     public const ulong GlobalVarCategory = 10;
     public const ulong RandomCategory = 11;
     public const ulong FactCategory = 12;
+    public const ulong ExtraTurnsCategory = 40;
 
     /// <summary>SplitMix64 finalizer.</summary>
     public static ulong Mix(ulong z)
