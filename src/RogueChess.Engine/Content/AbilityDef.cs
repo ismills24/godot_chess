@@ -39,6 +39,12 @@ public abstract class AbilityDef : Behavior
     /// </summary>
     public virtual void ModifyMoves(IBoardView board, Piece piece, AbilityInstance self, List<Move> moves, int firstIndex) { }
 
+    /// <summary>
+    /// True while this ability stops the piece from moving or attacking at all (Frozen). Checked before any
+    /// movement is generated, so no other ability can add moves back, whatever order the abilities are in.
+    /// </summary>
+    public virtual bool Immobilizes(AbilityInstance self) => false;
+
     public override string ToString() => Id;
 }
 

@@ -255,9 +255,9 @@ M1–M2 are the critical path. M3 can run in parallel per content family once M2
 | ✅ Predator | `Killed` by self → `AddVar(kills)`; `VarChanged` → `ChangeDef` one step per kill |
 | ChronoCapture | `After(PieceDied, killer = self)` → `ClockDelta` (fixes B3) |
 | FireMage, FreezeMage, WallPlacement | `Cast` actions with range and tile params on the def. Decide which tiles casts may overwrite (B11) |
-| OnFire, Frozen | Status abilities with `turnsLeft` var. `OnTurnEnd` → `SetVar` / `RemoveAbility` / `Destroy` |
+| OnFire, ✅ Frozen | Status abilities with `turnsLeft` var. `OnTurnEnd` → `SetVar` / `RemoveAbility` / `Destroy` |
 | ✅ Wall, ✅ Fog, ✅ Guardian, Slippery, Tomb, Fire, Freeze tiles | Restriction flags + hooks, timers in tile vars. Fog = `BlocksCapture` flag; Guardian stops move captures only. Fix the Slippery direction rule (B6) |
-| WindGust, CheckerboardWipe, WallsPlacement + Turn/BoardValue conditions | `BoardEffectDef` in `GameState.Globals`, condition state in vars |
+| ✅ WindGust, CheckerboardWipe, WallsPlacement + TurnInterval/TurnDelay/BoardValue conditions | `BoardEffectDef` in `GameState.Globals`, checked at every turn end; "times fired" is the global's variable |
 | RoyalPromotion, TimeBank relics | `RelicDef` in Globals |
 | ExtraTurn, Fortify consumables | `UseConsumable` action. Extra turn via the `Turn.extraTurns` var |
 | Clock | Engine emits `ClockDelta`. The real-time clock stays outside the engine for now |

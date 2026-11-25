@@ -16,7 +16,7 @@ public static class MoveGenerator
         for (int sq = 0; sq < s.Area; sq++)
         {
             var p = s.PieceAt(sq);
-            if (p == null || p.Side != side) continue;
+            if (p == null || p.Side != side || p.IsImmobile) continue;
             int first = moves.Count;
             foreach (var movement in p.Def.Movements)
                 movement.Generate(s, p, moves);
@@ -58,7 +58,7 @@ public static class MoveGenerator
         for (int sq = 0; sq < s.Area; sq++)
         {
             var p = s.PieceAt(sq);
-            if (p == null || p.Side != by) continue;
+            if (p == null || p.Side != by || p.IsImmobile) continue;
             foreach (var movement in p.Def.Movements)
                 if (movement.Attacks(s, p, target)) return true;
         }

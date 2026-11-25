@@ -1,4 +1,5 @@
 using RogueChess.Engine.Content.Abilities;
+using RogueChess.Engine.Content.BoardEffects;
 using RogueChess.Engine.Content.Tiles;
 
 namespace RogueChess.Engine.Content;
@@ -17,9 +18,12 @@ public static class ContentLibrary
             .AddAbility(ScapegoatAbility.Instance, "Scapegoat")
             .AddAbility(PhantomAbility.Instance, "Phantom")
             .AddAbility(PredatorAbility.Instance, "Predator")
+            .AddAbility(FrozenAbility.Instance, "Frozen")
             // tiles
             .AddTile(WallTile.Instance, "WallTile")
             .AddTile(GuardianTile.Instance, "GuardianTile")
-            .AddTile(FogTile.Instance, "FogTile");
+            .AddTile(FogTile.Instance, "FogTile")
+            // board effects (WallsPlacement, WindGust, CheckerboardWipe) and their conditions
+            .AddBoardEffects();
     }
 }

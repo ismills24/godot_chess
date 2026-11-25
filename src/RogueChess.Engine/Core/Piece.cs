@@ -47,6 +47,17 @@ public sealed class Piece
         return i >= 0 ? AbilityList[i] : null;
     }
 
+    /// <summary>Whether an ability (e.g. Frozen) currently stops this piece from moving or attacking.</summary>
+    public bool IsImmobile
+    {
+        get
+        {
+            foreach (var a in AbilityList)
+                if (a.Def.Immobilizes(a)) return true;
+            return false;
+        }
+    }
+
     /// <summary>Material value for the AI: the def's value plus every ability's value.</summary>
     public int Value
     {

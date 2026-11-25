@@ -91,8 +91,15 @@ public static class MapLoader
                     : "";
                 var factory = catalog.FindBoardEffect(type);
                 if (factory == null) { Unknown("board effect", type); continue; }
-                var (def, vars) = factory(e);
-                s.AddGlobal(def, vars);
+                try
+                {
+                    var (def, vars) = factory(e);
+                    s.AddGlobal(def, vars);
+                }
+                catch (FormatException ex)
+                {
+                    problems.Add($"board effect '{type}': {ex.Message}");
+                }
             }
         }
 

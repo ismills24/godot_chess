@@ -134,6 +134,41 @@ Plain movement rules are flags on `TileDef`; behaviour comes from the same hooks
 
 `WallTile` (trigger: breaks when landed on) and `GuardianTile` (prevent modifier: cancels one capture) show the two hook styles.
 
+## Recipe 7: a board effect or condition
+
+A board effect is a condition plus an effect (`Content/BoardEffects/`), wrapped in a `BoardEffectDef` global.
+At the end of every turn (both sides' turns count; turn = `Ply + 1`, as in the prototype) the def asks its
+`BoardCondition.IsMet(board, turn, timesFired)`. If the condition is met, it calls `BoardEffect.Apply(ctx, timesFired)`,
+which proposes changes like any trigger, and adds 1 to the global's "times fired" variable. Conditions and effects keep
+no state: anything they need to remember must come from `timesFired` (TurnDelay fires once, BoardValue's
+`maxTriggers`, CheckerboardWipe's alternating colour) or from the board.
+
+- New condition: subclass `BoardCondition` in `Conditions.cs` and add a case to `BoardEffectJson.ParseCondition`.
+- New effect: subclass `BoardEffect` in `Effects.cs`, add a case to `BoardEffectJson.ParseEffect`, and register its type in `AddBoardEffects`.
+- Random choices use `ctx.Random`, the game's seeded generator, so they are reproducible and undo cleanly.
+- To freeze pieces, propose `Proposal.AddAbility(piece, FrozenAbility.Instance, cause, turns)`. Re-freezing keeps the longer duration.
+- Watch out: Frozen is worth −2 board value, and a side whose pieces are all frozen has no legal moves, which ends the game as a draw.
+
+Map format (same as the prototype):
+
+```json
+"boardEffects": [{ "name": "Periodic Wind Gust",
+  "condition": { "type": "TurnInterval", "params": { "interval": 4, "startTurn": 4 } },
+  "effect":    { "type": "WindGust", "params": { "targetPlayer": "White", "freezeDuration": 2 } } }]
+```
+
+| Condition | Params (defaults) |
+|---|---|
+| `TurnInterval` | `interval` (1), `startTurn` (= interval) |
+| `TurnDelay` | `turnNumber` (1): fires once |
+| `BoardValue` | `color` ("white"), `threshold` (10), `maxTriggers` (-1 = unlimited): fires while that side's non-royal value is below the threshold |
+
+| Effect | Params (defaults) |
+|---|---|
+| `WallsPlacement` | `wallCount` (1): random empty, non-wall squares become walls |
+| `WindGust` | `targetPlayer` ("white"), `freezeDuration` (2): in each file, that side's highest piece moves down a rank; if blocked, it and the blocker freeze |
+| `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
+
 ## Testing a new piece
 
 1. **Unit test** in `ContentTests.cs`: set up with FEN (`Fen.Parse(fen, RuleSet.Rogue)`), `GrantAbility` / `SetTile`, then `Play(s, "e2e4")` and assert on the board. Include at least one interaction with existing content.

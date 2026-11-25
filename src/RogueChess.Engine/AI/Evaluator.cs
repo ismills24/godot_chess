@@ -73,7 +73,7 @@ public sealed class WeightedEvaluator : IEvaluator
                 }
             }
 
-            if (_needMoves)
+            if (_needMoves && !p.IsImmobile)
             {
                 _moves.Clear();
                 foreach (var movement in p.Def.Movements) movement.Generate(s, p, _moves);
