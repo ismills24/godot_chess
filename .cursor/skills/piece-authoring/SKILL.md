@@ -32,6 +32,16 @@ design. Later explicit user feedback can revise any preference below.
 - The current replacement is a plain steel head with a cool metallic highlight.
   The bomb, fuse, patch, and rivets were superseded for this prototype. They are not
   forbidden for a future explicitly requested design.
+- Pieces should belong in the menu's rainy, lantern-lit Victorian alley: lit by scene
+  lights rather than baked shading, with a felt foot. Bodies use a gentle concave sweep
+  with a collar bead, not straight cones.
+- Match the menu's PS1-era aesthetic: flat, matte, softly varied painted colour. A
+  realistic finish (prominent ring grain, glossy varnish, crisp highlights) was rejected
+  as too sharp and distracting, especially on maple. Review through the menu's low-res
+  stage and pixel finish rather than full-resolution renders.
+- Special-piece status is diegetic material, not UI: e.g. a gilt (gold leaf) finish for
+  a VIP-style piece, a smoldering wick for an explosive one. `finish` on `wood_piece.gd`
+  is the material slot; such ideas are art direction, not established rules.
 - The painted surface-splat appearance and pixel treatment were received positively.
   Keep the ability to inspect the underlying rendering without postprocessing.
 

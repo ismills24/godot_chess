@@ -1,16 +1,22 @@
 shader_type spatial;
-render_mode unshaded, cull_disabled;
+render_mode cull_disabled;
 #include "res://assets/pieces/wood/wood_lighting.gdshaderinc"
-uniform bool dark_wood = false;
+uniform int finish = 0;
 uniform float selection_amount : hint_range(0.0, 1.0) = 0.0;
 varying vec3 local_position;
-varying vec3 world_normal;
-varying vec3 world_position;
 void vertex() {
     local_position = VERTEX;
-    world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-    world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 }
 void fragment() {
-    ALBEDO = mix(wood_color(local_position, world_normal, world_position, INV_VIEW_MATRIX[3].xyz, dark_wood), vec3(0.4, 0.85, 1.0), selection_amount);
+    vec3 albedo;
+    float roughness;
+    float metallic;
+    float specular;
+    // The sleeve sits in the collar's shadow; read it as a slightly dirtier joint.
+    piece_finish(local_position, finish, 0.0, 0.25, false, albedo, roughness, metallic, specular);
+    ALBEDO = mix(albedo, vec3(0.4, 0.85, 1.0), selection_amount);
+    EMISSION = vec3(0.25, 0.6, 0.8) * selection_amount * 0.6;
+    ROUGHNESS = roughness;
+    METALLIC = metallic;
+    SPECULAR = specular;
 }

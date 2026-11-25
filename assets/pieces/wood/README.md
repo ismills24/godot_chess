@@ -23,6 +23,9 @@ preview stands, not a chessboard. The main sandbox now uses these assets for gam
 - `set_head_lift(distance)` couples rotation to axial travel for the first 0.30
   units and lifts clear thereafter. Zero restores the seated pose. The preview
   toggle jumps between states for inspection; it is not a new swap animation.
+- `finish` selects the material: `auto` (follows `dark_wood`), `maple`, `walnut`, or
+  `gilt` (brassy gold leaf over the same carving, with a soft glint).
+  Gilt is a material slot for special pieces; it carries no gameplay meaning by itself.
 - Optional `base_kind`, `body_kind`, and `head_kind` select modules independently.
   Empty overrides use `piece_kind`, preserving the original scenes. The body supplies
   the head's mating height. Gameplay recipes live in `assets/pieces/visual_catalog.json`.
@@ -45,17 +48,31 @@ cross provide the other identifying shapes. The grain and sheen are subdued.
 Sampling is deterministic. Gaussian-opacity surface splats retain the painted
 finish; smooth sockets and recessed dowel threads use conventional geometry.
 
-`wood_surface.gdshader` and `wood_solid.gdshader` share procedural grain, directional
-shading, and satin highlights through `wood_lighting.gdshaderinc`. Maple and walnut
-use the same geometry with distinct material colors, independent of gameplay side.
-The current assets intentionally reuse `experiments/pawn/workshop_parts.gd` and
-its dowel shader; keep those dependencies when moving or packaging the set.
+Bodies are turned profiles with a concave Staunton-like sweep and a small collar
+bead under the head; bases are weighted plinths with a green baize pad on the
+underside (`felt_pad`; kept off the side rim, where it broke up into dots at pixel scale). The knight is one broad horse cutout with a single swept
+ear and an arched crest, tapering toward the muzzle.
+
+`wood_surface.gdshader`, `wood_surface_depth.gdshader` and `wood_solid.gdshader` are
+**lit** spatial shaders: pieces take the scene's lights and ambient (lantern, fire,
+board light) instead of a baked light direction. They share `piece_finish()` in
+`wood_lighting.gdshaderinc`, tuned to the menu's PS1-era look: a flat painted colour
+quantised to four broad, low-contrast tones (like a small palettised texture), matte
+(roughness 0.85, low specular), no fine grain or varnish glints. Each splat carries
+baked wear in its vertex color (red = exposed edge, green = cavity); it is applied
+only faintly. Heads derive it from the SDF Laplacian plus a short occlusion probe;
+lathe modules from profile turns and the foot seam. Splats shade with their sampled
+normal; the soft-blended gallery shader mirrors far-side normals so the gap fill
+behind near-side footprints matches the front instead of reading as dark speckle.
+Gameplay (`sandbox/BoardView3D.cs`) renders the board through the same pipeline as
+the menu: a low-res stage at the menu's pixel size, upscaled by `menu/pixel_finish.gdshader`.
+Judge changes that way, not with full-resolution renders, which overstate sharpness.
 
 `wood_splats.gd` caches geometry and up to four depth-order meshes per module.
-Identically oriented pieces share an order, including the two wood finishes.
+Identically oriented pieces share an order across finishes.
 The cache quantizes the local camera direction; transparent surface splats still
-have approximate overlap sorting. Lighting is stylized, and splats do not cast
-dynamic shadows. A second simultaneous viewport with a different camera has not
+have approximate overlap sorting. Depth-tested (board) splats cast shadows;
+soft-blended gallery splats do not. A second simultaneous viewport with a different camera has not
 been validated. Prebaking and a production sorting path can be added when needed.
 
 ## Validation
@@ -82,3 +99,9 @@ maple/walnut pairs in Godot, with no runtime or shader errors.
 The same bishop clipping transform also lives in `wood_surface_depth.gdshader`;
 update both surface shaders when changing the cut. Board-scale cutouts reject
 back-facing splats and have crisper edges than the blended gallery renderer.
+
+The lit-finish revision (curved bodies, plinth and felt, revised knight, baked wear,
+`finish`) passes `verify_wood_set.gd` and `VerifyGameplayVisuals`, and was checked
+visually in the gallery, under warm alley-style lighting, and on the board with the
+gameplay lights. Denser rook/knight sampling and wear baking raise first-load geometry
+generation for all six archetypes from about 2.7 s to 4.3 s; prebaking would remove it.

@@ -1,11 +1,58 @@
-vec3 wood_color(vec3 position_local, vec3 normal_world, vec3 position_world, vec3 camera_world, bool dark) {
-    vec3 n = normalize(normal_world);
-    vec3 l = normalize(vec3(-0.65, 0.85, 0.5));
-    float phase = position_local.x * 19.0 + position_local.z * 11.0 + sin(position_local.y * 3.0 + position_local.z * 5.0);
-    float grain = sin(phase) * 0.006;
-    vec3 base = dark ? vec3(0.39, 0.205, 0.105) : vec3(0.91, 0.73, 0.46);
-    float illumination = 0.38 + 0.62 * max(dot(n, l), 0.0);
-    vec3 view_dir = normalize(camera_world - position_world);
-    float sheen = pow(max(dot(n, normalize(l + view_dir)), 0.0), 18.0) * 0.045;
-    return base * (illumination + grain) + vec3(1.0, 0.85, 0.65) * sheen;
+// Shared piece finish for surface splats and solid joints. Pieces are lit by the
+// scene (lantern, fire, ambient), so this only describes the material.
+// finish: 0 = maple, 1 = walnut, 2 = gilt (gold leaf over wood, for special pieces).
+// edge/cavity are baked per splat in wood_shapes.gd; felt marks the foot pad band.
+
+float piece_hash(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float piece_noise(vec3 x) {
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(piece_hash(i), piece_hash(i + vec3(1, 0, 0)), f.x),
+                   mix(piece_hash(i + vec3(0, 1, 0)), piece_hash(i + vec3(1, 1, 0)), f.x), f.y),
+               mix(mix(piece_hash(i + vec3(0, 0, 1)), piece_hash(i + vec3(1, 0, 1)), f.x),
+                   mix(piece_hash(i + vec3(0, 1, 1)), piece_hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+
+void piece_finish(vec3 p, int finish, float edge, float cavity, bool felt,
+        out vec3 albedo, out float roughness, out float metallic, out float specular) {
+    if (felt) {
+        // Green baize glued under the foot.
+        albedo = vec3(0.020, 0.060, 0.034);
+        roughness = 1.0;
+        metallic = 0.0;
+        specular = 0.0;
+        return;
+    }
+    // PS1-era read: a flat painted colour with a few broad, low-contrast tones,
+    // like a small palettised texture. No fine grain, no gloss.
+    float streak = piece_noise(p * vec3(3.0, 0.9, 3.0) + 7.3);
+    float patch = piece_noise(p * 1.7 + 2.1);
+    float tone = floor(clamp(streak * 0.7 + patch * 0.3, 0.0, 0.999) * 4.0) / 3.0;
+    float grime = clamp(cavity, 0.0, 1.0);
+    float rubbed = clamp(edge, 0.0, 1.0);
+    if (finish == 2) {
+        // Scenes have no reflection probes, so leaf is only partly metallic:
+        // the diffuse share keeps it reading as gold under lantern light.
+        // Brassy yellow, not orange, so it separates from maple under lamplight.
+        albedo = mix(vec3(0.90, 0.74, 0.22), vec3(1.0, 0.88, 0.36), tone);
+        albedo *= 1.0 - grime * 0.35;
+        roughness = 0.38;
+        metallic = 0.6;
+        specular = 0.6;
+        return;
+    }
+    vec3 light_tone = finish == 1 ? vec3(0.215, 0.118, 0.064) : vec3(0.54, 0.40, 0.25);
+    vec3 dark_tone = finish == 1 ? vec3(0.170, 0.090, 0.048) : vec3(0.48, 0.345, 0.205);
+    albedo = mix(dark_tone, light_tone, tone);
+    // Only a hint of handling: slightly lighter lips, softly darker recesses.
+    albedo *= 1.0 + rubbed * 0.06 - grime * 0.22;
+    roughness = 0.85;
+    metallic = 0.0;
+    specular = 0.18;
 }

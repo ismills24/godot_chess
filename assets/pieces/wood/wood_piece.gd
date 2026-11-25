@@ -5,6 +5,9 @@ const Splats = preload("res://assets/pieces/wood/wood_splats.gd")
 const Parts = preload("res://experiments/pawn/workshop_parts.gd")
 @export_enum("pawn", "rook", "knight", "bishop", "queen", "king") var piece_kind := "pawn"
 @export var dark_wood := false
+## "auto" follows dark_wood (walnut or maple). "gilt" is gold leaf over the same carving,
+## a material slot for special pieces; it carries no gameplay meaning by itself.
+@export_enum("auto", "maple", "walnut", "gilt") var finish := "auto"
 ## Empty overrides preserve the original whole-piece scenes.
 @export var base_kind := ""
 @export var body_kind := ""
@@ -18,6 +21,12 @@ static var sleeve_mesh: Mesh
 static var dowel_mesh: Mesh
 static var dowel_material: Material
 static var sleeve_materials: Dictionary = {}
+const FINISHES = {"maple": 0, "walnut": 1, "gilt": 2}
+
+func finish_index() -> int:
+    if FINISHES.has(finish):
+        return FINISHES[finish]
+    return 1 if dark_wood else 0
 
 func _ready() -> void:
     assert(Shapes.KINDS.has(piece_kind))
@@ -29,7 +38,7 @@ func _ready() -> void:
         surface.name = module.capitalize()
         add_child(surface)
         var kind: String = (base_kind if Shapes.KINDS.has(base_kind) else piece_kind) if module == "base" else body_type
-        surface.configure(kind, module, dark_wood, depth_tested_splats)
+        surface.configure(kind, module, finish_index(), depth_tested_splats)
         modules.append(surface)
     head = Node3D.new()
     head.name = "Head"
@@ -38,19 +47,20 @@ func _ready() -> void:
     var top := Splats.new()
     top.name = "Carving"
     head.add_child(top)
-    top.configure(head_type, "head", dark_wood, depth_tested_splats)
+    top.configure(head_type, "head", finish_index(), depth_tested_splats)
     modules.append(top)
     if sleeve_mesh == null:
         var temporary := Node3D.new()
         Parts.socket(temporary, Parts.material(Color.WHITE))
         sleeve_mesh = temporary.get_child(0).mesh
         temporary.free()
-    if not sleeve_materials.has(dark_wood):
+    var finish_id := finish_index()
+    if not sleeve_materials.has(finish_id):
         var material := ShaderMaterial.new()
         material.shader = preload("res://assets/pieces/wood/wood_solid.gdshader")
-        material.set_shader_parameter("dark_wood", dark_wood)
-        sleeve_materials[dark_wood] = material
-    Parts.mesh_node(head, sleeve_mesh, Vector3.ZERO, sleeve_materials[dark_wood]).name = "SmoothSocket"
+        material.set_shader_parameter("finish", finish_id)
+        sleeve_materials[finish_id] = material
+    Parts.mesh_node(head, sleeve_mesh, Vector3.ZERO, sleeve_materials[finish_id]).name = "SmoothSocket"
     var pin := Node3D.new()
     pin.name = "ThreadedDowel"
     add_child(pin)

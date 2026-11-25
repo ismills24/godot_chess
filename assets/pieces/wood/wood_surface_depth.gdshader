@@ -1,16 +1,19 @@
 shader_type spatial;
-render_mode unshaded, cull_disabled, depth_draw_opaque;
+render_mode cull_disabled, depth_draw_opaque;
 #include "res://assets/pieces/wood/wood_lighting.gdshaderinc"
-uniform bool dark_wood = false;
+uniform int finish = 0;
+uniform bool felt_pad = false;
 uniform float selection_amount : hint_range(0.0, 1.0) = 0.0;
 uniform bool bishop_cut = false;
 varying vec3 local_position;
 varying vec3 world_normal;
 varying vec3 world_position;
+varying vec2 wear;
 void vertex() {
     local_position = VERTEX;
     world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
+    wear = COLOR.rg;
 }
 void fragment() {
     // Surface splats are one-sided: far-side and underside footprints must not
@@ -28,7 +31,18 @@ void fragment() {
     vec2 p = UV * 2.0 - 1.0;
     float r = dot(p, p);
     if (r > 0.80) { discard; }
-    ALBEDO = mix(wood_color(local_position, world_normal, world_position, INV_VIEW_MATRIX[3].xyz, dark_wood), vec3(0.4, 0.85, 1.0), selection_amount);
+    vec3 albedo;
+    float roughness;
+    float metallic;
+    float specular;
+    piece_finish(local_position, finish, wear.x, wear.y, felt_pad && local_position.y < 0.003, albedo, roughness, metallic, specular);
+    ALBEDO = mix(albedo, vec3(0.4, 0.85, 1.0), selection_amount);
+    EMISSION = vec3(0.25, 0.6, 0.8) * selection_amount * 0.6;
+    ROUGHNESS = roughness;
+    METALLIC = metallic;
+    SPECULAR = specular;
+    // Splats are camera-agnostic quads: shade with the sampled surface normal.
+    NORMAL = normalize((VIEW_MATRIX * vec4(world_normal, 0.0)).xyz);
     ALPHA = exp(-4.0 * r) * 0.98;
     ALPHA_SCISSOR_THRESHOLD = 0.09;
 }

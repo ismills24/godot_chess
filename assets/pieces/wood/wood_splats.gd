@@ -5,16 +5,19 @@ static var cache: Dictionary = {}
 static var materials: Dictionary = {}
 var cache_key := ""
 
-func configure(kind: String, module: String, dark: bool, depth_tested: bool = false) -> void:
+## finish: 0 maple, 1 walnut, 2 gilt (see wood_lighting.gdshaderinc).
+func configure(kind: String, module: String, finish: int, depth_tested: bool = false) -> void:
     cache_key = kind + "/" + module
     if not cache.has(cache_key):
         _build(cache_key, Shapes.samples(kind, module))
     var bishop_cut := kind == "bishop" and module == "head"
-    var material_key := str(dark) + "/" + str(bishop_cut) + "/" + str(depth_tested)
+    var felt := module == "base"
+    var material_key := "%d/%s/%s/%s" % [finish, bishop_cut, depth_tested, felt]
     if not materials.has(material_key):
         var mat := ShaderMaterial.new()
         mat.shader = preload("res://assets/pieces/wood/wood_surface_depth.gdshader") if depth_tested else preload("res://assets/pieces/wood/wood_surface.gdshader")
-        mat.set_shader_parameter("dark_wood", dark)
+        mat.set_shader_parameter("finish", finish)
+        mat.set_shader_parameter("felt_pad", felt)
         mat.set_shader_parameter("bishop_cut", bishop_cut)
         materials[material_key] = mat
     material_override = materials[material_key]
@@ -24,22 +27,26 @@ static func _build(key: String, points: Array[Dictionary]) -> void:
     var vertices := PackedVector3Array()
     var normals := PackedVector3Array()
     var uvs := PackedVector2Array()
+    var colors := PackedColorArray()
     var centers := PackedVector3Array()
     const CORNERS = [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, -1), Vector2(1, 1), Vector2(-1, 1)]
     for point in points:
         var n: Vector3 = point.normal
         var tangent := n.cross(Vector3.UP if absf(n.y) < 0.95 else Vector3.RIGHT).normalized()
         var bitangent := n.cross(tangent).normalized()
+        var wear := Color(point.get("edge", 0.0), point.get("cavity", 0.0), 0.0, 1.0)
         centers.append(point.position)
         for corner in CORNERS:
             vertices.append(point.position + (tangent * corner.x + bitangent * corner.y) * point.radius)
             normals.append(n)
             uvs.append((corner + Vector2.ONE) * 0.5)
+            colors.append(wear)
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = vertices
     arrays[Mesh.ARRAY_NORMAL] = normals
     arrays[Mesh.ARRAY_TEX_UV] = uvs
+    arrays[Mesh.ARRAY_COLOR] = colors
     var result := ArrayMesh.new()
     result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
     cache[key] = {"arrays": arrays, "centers": centers, "mesh": result, "orders": {}}
