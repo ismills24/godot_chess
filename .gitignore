@@ -25,3 +25,7 @@ mono_crash.*.json
 /artifacts/
 /tools/asset_harness/__pycache__/
 /tools/asset_harness/config.local.json
+
+# Generated concept art stays local; keep Godot's import exclusion in version control.
+/output/imagegen/*
+!/output/imagegen/.gdignore
