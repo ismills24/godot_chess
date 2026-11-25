@@ -5,8 +5,8 @@
   "player": {
     "pieceValue": 10,
     "minimumPawns": 2,
-    // The prototype's STARTING_PLAYER_ABILITIES. Revenant and ChronoCapture
-    // are not ported yet and are skipped until they are.
+    // The prototype's STARTING_PLAYER_ABILITIES. ChronoCapture is not ported yet
+    // and is skipped until it is.
     "startingAbilities": ["Exploding", "Phantom", "Predator", "FireMage", "FreezeMage", "WallPlacement", "Marksman", "Revenant", "ChronoCapture"]
   },
   "encounters": [

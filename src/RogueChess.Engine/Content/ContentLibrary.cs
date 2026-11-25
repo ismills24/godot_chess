@@ -26,12 +26,16 @@ public static class ContentLibrary
             .AddAbility(PiercingAbility.Instance, "Piercing")
             .AddAbility(BouncerAbility.Instance, "Bouncer")
             .AddAbility(MarksmanAbility.Instance, "Marksman")
+            .AddAbility(RevenantAbility.Instance, "Revenant")
+            .AddAbility(CannibalAbility.Instance, "Cannibal")
             // tiles
             .AddTile(WallTile.Instance, "WallTile")
             .AddTile(GuardianTile.Instance, "GuardianTile")
             .AddTile(FogTile.Instance, "FogTile")
             .AddTile(FireTile.Instance, "FireTile")
             .AddTile(FreezeTile.Instance, "FreezeTile")
+            .AddTile(SlipperyTile.Instance, "SlipperyTile")
+            .AddTile(TombTile.Instance, "TombTile")
             // board effects (WallsPlacement, WindGust, CheckerboardWipe) and their conditions
             .AddBoardEffects();
     }
