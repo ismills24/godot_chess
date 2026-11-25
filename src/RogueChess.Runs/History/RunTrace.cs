@@ -7,7 +7,7 @@ public sealed record RunTraceHeader
 {
     public int FormatVersion { get; init; } = 1;
     public string SimulationVersion { get; init; } = RunSession.SimulationVersion;
-    public string ContentVersion { get; init; } = "engine-content-v1";
+    public string ContentVersion { get; init; } = RunSession.ContentVersion;
     public string RngVersion { get; init; } = RunRandom.Version;
     public string GeneratorVersion { get; init; } = "";
     public SortedDictionary<string, string> Handlers { get; init; } = new(StringComparer.Ordinal);

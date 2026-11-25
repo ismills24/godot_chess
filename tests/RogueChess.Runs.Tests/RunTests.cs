@@ -6,8 +6,11 @@ using System.Linq;
 using System.Threading;
 using RogueChess.Engine.AI;
 using RogueChess.Engine.Content;
+using RogueChess.Engine.Content.Abilities;
+using RogueChess.Engine.Content.Consumables;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Notation;
+using RogueChess.Engine.Resolution;
 using RogueChess.Engine.Rules;
 using RogueChess.Runs;
 using Xunit;
@@ -61,9 +64,10 @@ public class RunTests
         Assert.Equal(2, session.Trace.Commands.Count);
         Assert.Equal(1234, session.Trace.Commands[^1].DecisionMilliseconds);
         Assert.Equal(Side.White, Battle(session).Position.SideToMove);
+        Assert.Equal(2, Battle(session).Position.History.Length);
         Assert.Equal(Hash(session), Hash(RunSession.Replay(session.Trace)));
         // Shared reference for the Windows/Linux CI matrix. A semantics change requires deliberate versioning.
-        Assert.Equal("9742B0DF9A5A8E1ECF3F98951796AE7DABE6370088AB20B89A2155F6A4C5D909", Hash(session));
+        Assert.Equal("9C7728967AB9238B8CCDFBEE295742AB4592A54EAEA9D87C967B78E53A820B57", Hash(session));
     }
     [Fact] public void Illegal_stale_and_wrong_context_commands_do_not_change_state_or_history()
     {
@@ -298,6 +302,40 @@ public class RunTests
         Assert.Equal(13, restored.TileAt(3).Var(0));
         Assert.Equal(board.Place(StandardPieces.Rook, Side.White, 0).Id, restored.Place(StandardPieces.Rook, Side.White, 0).Id);
         Assert.Equal(0, GameState.Restore(restored.Capture(), catalog).UndoDepth);
+    }
+    [Fact] public void Engine_snapshot_preserves_clock_extra_turns_and_action_history()
+    {
+        var catalog = ContentLibrary.CreateCatalog().AddGlobal(ExtraTurnPotion.Instance);
+        var board = Fen.Parse("k7/8/8/8/8/8/p7/R6K w - - 0 1", RuleSet.Rogue);
+        board.GrantAbility(board.PieceAt(0, 0)!, ChronoCaptureAbility.Instance);
+        ExtraTurnPotion.Instance.Give(board, 2, 1);
+        Assert.True(Game.PlayTurn(board, RogueChess.Engine.Core.Move.UseConsumable(0)).Accepted);
+        Assert.True(Game.PlayTurn(board, MoveText.FindLegal(board, "a1a2")!.Value).Accepted);
+        Assert.True(Game.PlayTurn(board, RogueChess.Engine.Core.Move.UseConsumable(0)).Accepted);
+        board.SetSideToMove(Side.Black);
+        Assert.True(Game.PlayTurn(board, RogueChess.Engine.Core.Move.UseConsumable(0)).Accepted);
+        Assert.Equal(5000, board.ClockMs(Side.White));
+        Assert.Equal(1, board.ExtraTurns(Side.White));
+        Assert.Equal(1, board.ExtraTurns(Side.Black));
+        Assert.Equal(4, board.History.Count);
+
+        var restored = GameState.Restore(RunJson.Copy(board.Capture()), catalog);
+        Assert.Equal(board.Dump(), restored.Dump());
+        Assert.Equal(board.History.ToArray(), restored.History.ToArray());
+        Assert.Equal(board.Hash, restored.Hash);
+        Assert.Equal(0, restored.UndoDepth);
+        var move = MoveText.FindLegal(board, "a8b8")!.Value;
+        Assert.True(Game.PlayTurn(board, move).Accepted);
+        Assert.True(Game.PlayTurn(restored, move).Accepted);
+        Assert.Equal(Side.Black, restored.SideToMove); // The restored banked turn is spent.
+        Assert.Equal(RunJson.Hash(board.Capture()), RunJson.Hash(restored.Capture()));
+    }
+    [Fact] public void Previous_content_traces_are_rejected_before_replay_or_restore()
+    {
+        var session = Start();
+        var trace = session.Trace with { Header = session.Trace.Header with { ContentVersion = "engine-content-v1" } };
+        Assert.Throws<FormatException>(() => RunSession.Replay(trace));
+        Assert.Throws<FormatException>(() => RunSession.Restore(session.CaptureSave() with { Trace = trace }));
     }
     private sealed class StatefulAbility : AbilityDef
     {

@@ -10,6 +10,7 @@ namespace RogueChess.Runs;
 public sealed class RunSession
 {
     public const string SimulationVersion = "runs-v1";
+    public const string ContentVersion = "engine-content-v2";
     private readonly object _gate = new();
     private readonly EncounterRegistry _registry;
     private RunState _state;
@@ -151,7 +152,7 @@ public sealed class RunSession
     {
         var header = trace.Header;
         if (header.FormatVersion != 1 || header.SimulationVersion != SimulationVersion
-            || header.RngVersion != RunRandom.Version || header.ContentVersion != "engine-content-v1")
+            || header.RngVersion != RunRandom.Version || header.ContentVersion != ContentVersion)
             throw new FormatException("This trace requires a different game/content version.");
         if (RunJson.Hash(header.Definition) != header.ConfigurationHash) throw new FormatException("Trace configuration hash does not match.");
         for (int i = 0; i < trace.Commands.Count; i++)

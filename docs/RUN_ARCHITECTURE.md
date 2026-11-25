@@ -2,6 +2,8 @@
 
 Status: foundation and first playable slice implemented, 2026-11-23. The contracts below guide future gameplay systems.
 
+Content integration, 2026-11-25: battle snapshot v2 preserves the M3 engine's per-side clock adjustments, banked extra turns, and accepted-action history. New runs use `engine-content-v2`; pre-M3 traces/saves require the older build and are rejected explicitly, with migrations still deferred. These engine clock adjustments do not define a run-level HP clock or wall-clock gameplay policy.
+
 The current implementation adds `RogueChess.Runs`, versioned command traces and complete battle snapshots, atomic command execution, deterministic AI, policy-driven battle undo, save/load, and debug replay/seek. The Godot host opens a configured 5x5 overworld with the existing bartender scene and a generated street battle. `run/prototype.json` supplies fixture content; generation algorithms, inventory gameplay, and global-clock rules remain deferred.
 
 Current choices: inventory/encounter codecs use `StatePayload` with kind/version/data; battle undo stores full prior decision positions in encounter state; each save writes a full trace plus a checkpoint; debug seek currently replays from sequence zero. These favor correctness and inspectability. Save timing is selectable in Run tools, defaulting to overworld return, and preferences survive restarts. Undo is free in the playable fixture, with paid-policy behavior covered by tests.
