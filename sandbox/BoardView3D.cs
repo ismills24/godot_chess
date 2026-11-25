@@ -16,7 +16,15 @@ public partial class BoardView3D : Control
     public HashSet<int> QuietTargets { get; } = new();
     public HashSet<int> CaptureTargets { get; } = new();
     public List<BoardView.Marker> Markers { get; } = new();
+    /// <summary>Board and surroundings. Set before the view enters the tree, or call RefreshVisuals after.</summary>
+    public StageVisuals Stage { get; set; } = StageVisuals.Street;
+    private StageVisuals? _shownStage;
+    private Node3D? _setting;
     private const float CellSize = 1.45f;
+    /// <summary>Matches the main menu's stage, which spans the window's long edge with this many
+    /// pixels. The board uses the same pixel size (so it is as chunky as the menu at any window
+    /// size) and is upscaled with menu/pixel_finish.gdshader. The 2D overlay stays at screen resolution.</summary>
+    private const int PixelLongEdge = 704;
     private SubViewport _viewport = null!;
     private Node3D _world = null!, _board = null!;
     private Camera3D _camera = null!;
@@ -40,17 +48,15 @@ public partial class BoardView3D : Control
         AddChild(_viewport);
         _world = new Node3D();
         _viewport.AddChild(_world);
-        _world.AddChild(new WorldEnvironment { Environment = new Godot.Environment {
-            BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("29313a"),
-            AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = Colors.White,
-            AmbientLightEnergy = 0.7f } });
-        _world.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-55, -30, 0), LightEnergy = 1.2f });
         _camera = new Camera3D { Projection = Camera3D.ProjectionType.Orthogonal, Current = true };
         _world.AddChild(_camera);
-        var texture = new TextureRect { Texture = _viewport.GetTexture(), MouseFilter = MouseFilterEnum.Ignore,
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale };
-        texture.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        AddChild(texture);
+        var finish = new ShaderMaterial { Shader = GD.Load<Shader>("res://menu/pixel_finish.gdshader") };
+        finish.SetShaderParameter("stage_texture", _viewport.GetTexture());
+        // A lighter vignette than the menu: board edges still carry play.
+        finish.SetShaderParameter("vignette", 0.22f);
+        var display = new ColorRect { Material = finish, MouseFilter = MouseFilterEnum.Ignore };
+        display.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(display);
         _overlay = new Control { MouseFilter = MouseFilterEnum.Ignore };
         _overlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _overlay.Draw += DrawOverlay;
@@ -73,9 +79,16 @@ public partial class BoardView3D : Control
         ResizeViewport();
     }
 
+    // Pixel size follows the window, which can change without this control resizing.
+    public override void _EnterTree() => GetViewport().SizeChanged += ResizeViewport;
+    public override void _ExitTree() => GetViewport().SizeChanged -= ResizeViewport;
+
     private void ResizeViewport()
     {
-        _viewport.Size = new Vector2I(Math.Max(1, (int)Size.X), Math.Max(1, (int)Size.Y));
+        if (_viewport == null) return;
+        var window = GetViewport().GetVisibleRect().Size;
+        float scale = Math.Min(1f, PixelLongEdge / Math.Max(Math.Max(window.X, window.Y), 1f));
+        _viewport.Size = new Vector2I(Math.Max(2, Mathf.RoundToInt(Size.X * scale)), Math.Max(2, Mathf.RoundToInt(Size.Y * scale)));
         UpdateCamera();
     }
 
@@ -84,9 +97,10 @@ public partial class BoardView3D : Control
         if (_camera == null) return;
         _camera.Position = new Vector3(Mathf.Sin(_yaw) * Mathf.Cos(_elevation), Mathf.Sin(_elevation), Mathf.Cos(_yaw) * Mathf.Cos(_elevation)) * 24;
         _camera.LookAt(Vector3.Zero);
-        // Camera size is the vertical span; allow space for tall pieces and rectangular boards.
+        // Camera size is the vertical span; allow space for tall pieces, rectangular boards,
+        // and a little of the stage's surroundings.
         float aspect = (float)_viewport.Size.X / _viewport.Size.Y;
-        _camera.Size = Math.Max((_width * CellSize + 3) / aspect, _height * CellSize + 4) * _zoom;
+        _camera.Size = Math.Max((_width * CellSize + 5) / aspect, _height * CellSize + 6) * _zoom;
         _overlay?.QueueRedraw();
     }
 
@@ -104,13 +118,15 @@ public partial class BoardView3D : Control
             _pieces.Clear();
             _shownState = State;
         }
-        if (_board == null || _width != State.Width || _height != State.Height)
+        if (_board == null || _width != State.Width || _height != State.Height || _shownStage != Stage)
         {
+            if (_shownStage != Stage) BuildSetting();
             if (_board != null) RemoveVisual(_board);
             _width = State.Width; _height = State.Height;
-            _board = GD.Load<PackedScene>("res://assets/boards/wood/WoodBoard.tscn").Instantiate<Node3D>();
+            _board = GD.Load<PackedScene>(Stage.BoardScene).Instantiate<Node3D>();
             _board.Set("board_width", _width); _board.Set("board_height", _height);
             _world.AddChild(_board);
+            if (_setting != null && _setting.HasMethod("fit")) _setting.Call("fit", _width, _height);
             UpdateCamera();
         }
         var alive = new HashSet<int>();
@@ -156,6 +172,27 @@ public partial class BoardView3D : Control
         _overlay.QueueRedraw();
     }
 
+    private void BuildSetting()
+    {
+        if (_setting != null) RemoveVisual(_setting);
+        _shownStage = Stage;
+        if (Stage.SettingScene.Length > 0)
+        {
+            _setting = GD.Load<PackedScene>(Stage.SettingScene).Instantiate<Node3D>();
+            _setting.Name = "Setting";
+        }
+        else
+        {
+            _setting = new Node3D { Name = "Setting" };
+            _setting.AddChild(new WorldEnvironment { Environment = new Godot.Environment {
+                BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color("29313a"),
+                AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = Colors.White,
+                AmbientLightEnergy = 0.7f } });
+            _setting.AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-55, -30, 0), LightEnergy = 1.2f });
+        }
+        _world.AddChild(_setting);
+    }
+
     private static void RemoveVisual(Node node)
     {
         node.GetParent().RemoveChild(node);
@@ -176,9 +213,16 @@ public partial class BoardView3D : Control
         root.AddChild(body);
     }
 
+    /// <summary>Control-space position of a world point (the overlay and picking use control space).</summary>
+    public Vector2 ScreenPosition(Vector3 world) => _camera.UnprojectPosition(world) * StageToControl;
+
+    private Vector2 StageToControl => Size / new Vector2(_viewport.Size.X, _viewport.Size.Y);
+
+    /// <summary>Square under a control-space point.</summary>
     public int PickSquare(Vector2 point)
     {
         if (State == null) return -1;
+        point /= StageToControl;
         var from = _camera.ProjectRayOrigin(point);
         var direction = _camera.ProjectRayNormal(point);
         var query = PhysicsRayQueryParameters3D.Create(from, from + direction * 100, 1);
@@ -215,7 +259,7 @@ public partial class BoardView3D : Control
         { SquareClicked?.Invoke(sq); AcceptEvent(); }
     }
 
-    private Vector2 Project(Vector3 point) => _camera.UnprojectPosition(point);
+    private Vector2 Project(Vector3 point) => ScreenPosition(point);
 
     private void Outline(int sq, Color color, float inset = 0.06f)
     {

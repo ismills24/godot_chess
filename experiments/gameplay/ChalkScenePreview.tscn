@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3]
+[ext_resource type="Script" path="res://experiments/gameplay/ChalkScenePreview.gd" id="1"]
+[ext_resource type="Shader" path="res://menu/pixel_finish.gdshader" id="2"]
+[sub_resource type="ViewportTexture" id="ViewportTexture_stage"]
+viewport_path = NodePath("Stage")
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_finish"]
+shader = ExtResource("2")
+shader_parameter/stage_texture = SubResource("ViewportTexture_stage")
+shader_parameter/vignette = 0.22
+[node name="ChalkScenePreview" type="Node"]
+[node name="Stage" type="SubViewport" parent="."]
+size = Vector2i(704, 396)
+own_world_3d = true
+render_target_update_mode = 4
+[node name="World" type="Node3D" parent="Stage"]
+script = ExtResource("1")
+[node name="Display" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_finish")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2

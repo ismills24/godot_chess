@@ -31,6 +31,11 @@ public partial class VerifyGameplayVisuals : Node
             var world = view.GetChild<SubViewport>(0).GetChild<Node3D>(0);
             Node3D Visual(Piece p) => world.GetNode<Node3D>($"Piece_{p.Id}");
             Check(world.GetChildren().Count(n => n.Name.ToString().StartsWith("Piece_")) == 32, "Full inventory");
+            Check(world.HasNode("Setting") && world.GetNode("Setting").HasMethod("fit"), "Street stage setting is loaded");
+            var stage = view.GetChild<SubViewport>(0).Size;
+            var window = view.GetViewport().GetVisibleRect().Size;
+            Check(Math.Abs(view.Size.X / stage.X - Math.Max(1f, Math.Max(window.X, window.Y) / 704f)) < 0.02f,
+                "Board pixels match the menu stage's pixel size");
             foreach (var p in state.PiecesOnBoard())
                 Check(Visual(p).GetChild<Node3D>(1).Get("head_kind").AsString() == p.Def.Id, "Standard head mapping");
             var pawn = state.PieceAt(4, 1)!;
@@ -101,11 +106,10 @@ public partial class VerifyGameplayVisuals : Node
                 view.State = state; view.RefreshVisuals();
                 var board = world.GetChildren().OfType<Node3D>().Single(n => n.HasNode("Squares"));
                 Check(board.GetNode("Squares").GetChildCount() == state.Area, "Board dimensions");
-                var camera = world.GetChildren().OfType<Camera3D>().Single();
                 await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
                 await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
                 for (int sq = 0; sq < state.Area; sq++)
-                    Check(view.PickSquare(camera.UnprojectPosition(view.SquareCenter(sq))) == sq, "Projected square picking");
+                    Check(view.PickSquare(view.ScreenPosition(view.SquareCenter(sq))) == sq, "Projected square picking");
                 var fresh = state.Place(StandardPieces.Queen, Side.Black, 0);
                 view.RefreshVisuals();
                 Check(Visual(fresh).GetChild<Node3D>(1).Get("head_kind").AsString() == "queen", "New game ID reuse resets visual");
