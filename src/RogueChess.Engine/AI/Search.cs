@@ -481,6 +481,7 @@ internal sealed class Search
             else if (m.Promotion >= 0) score = 900_000_000;
             else if (m == _killers[ply, 0]) score = 800_000_000;
             else if (m == _killers[ply, 1]) score = 700_000_000;
+            else if (m.Is(MoveFlags.Cast)) score = -1; // casts (up to 24 per caster) after every other move
             else score = Math.Min(_history[m.From * _s.Area + m.To], 600_000_000);
 
             moves[write++] = m;
@@ -517,6 +518,7 @@ internal sealed class Search
                 keys[i] = 1_000_000 + (victim == null ? 1 : victim.Def.IsRoyal ? 1000 : victim.Value) * 64 - (_s.PieceAt(m.From)?.Value ?? 0);
             }
             else if (m.Promotion >= 0) keys[i] = 900_000;
+            else if (m.Is(MoveFlags.Cast)) keys[i] = -1;
         }
         Array.Sort(order, (a, b) => keys[a] != keys[b] ? keys[b].CompareTo(keys[a]) : a.CompareTo(b));
     }

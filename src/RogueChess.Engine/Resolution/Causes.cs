@@ -22,6 +22,12 @@ public static class Causes
     public const string Explosion = "explosion";
     public const string Scapegoat = "scapegoat";
 
+    /// <summary>A caster ability's tile placement (FireMage, FreezeMage, WallPlacement).</summary>
+    public const string Cast = "cast";
+
+    /// <summary>A piece destroyed by its OnFire status running out.</summary>
+    public const string Burned = "burned";
+
     /// <summary>Destroys caused by a move capturing a piece (normal or en passant).</summary>
     public static bool IsMoveCapture(string cause) => cause is Capture or EnPassant;
 }

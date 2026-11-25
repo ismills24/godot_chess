@@ -79,7 +79,9 @@ public sealed class WeightedEvaluator : IEvaluator
                 foreach (var movement in p.Def.Movements) movement.Generate(s, p, _moves);
                 foreach (var ability in p.Abilities) ability.Def.ModifyMoves(s, p, ability, _moves, 0);
 
-                v += _w.Mobility * _moves.Count;
+                int mobility = 0;
+                foreach (var m in _moves) if (!m.Is(MoveFlags.Cast)) mobility++; // casts are not mobility
+                v += _w.Mobility * mobility;
                 int biggestThreat = 0;
                 foreach (var m in _moves)
                 {

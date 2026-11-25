@@ -134,6 +134,14 @@ Plain movement rules are flags on `TileDef`; behaviour comes from the same hooks
 
 `WallTile` (trigger: breaks when landed on) and `GuardianTile` (prevent modifier: cancels one capture) show the two hook styles.
 
+Tiles with variables (timers) set their starting values with `InitialVars()`; they are used whenever a tile is placed without explicit values (map files, the sandbox, `ChangeTile` with no vars). See `StatusTile` (Fire, Freeze).
+
+## Recipe 6b: a cast (an action that isn't a move)
+
+A caster places a tile instead of moving. Most casters are data: `new CasterAbility(id, name, tile, range, tileVars...)` (see `CasterAbility.FireMage`). Casts may only target empty plain floor (`CasterAbility.CanTarget`, decision B11), never a square the piece could move to.
+
+Under the hood, an ability's `ModifyMoves` adds `Move(from, target, MoveFlags.Cast, Aux: abilityIndex)` entries, and the engine asks that ability's `ProposeAction` for the wave-0 proposals (proposing nothing rejects the action). Because the move names its ability by index, a piece can carry several casts. Notation: `c1e3@fire-mage`. The AI searches casts after all other moves.
+
 ## Recipe 7: a board effect or condition
 
 A board effect is a condition plus an effect (`Content/BoardEffects/`), wrapped in a `BoardEffectDef` global.

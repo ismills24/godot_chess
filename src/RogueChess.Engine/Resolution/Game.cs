@@ -71,6 +71,11 @@ public static class Game
         var proposals = _actionBuffer ??= new List<Proposal>(4);
         proposals.Clear();
         BuildActionProposals(state, action, mover, proposals);
+        if (proposals.Count == 0)
+        {
+            failure = "the action does nothing";
+            return false;
+        }
 
         ResolutionTrace? rt = null;
         if (trace != null)
@@ -96,6 +101,12 @@ public static class Game
     /// </summary>
     private static void BuildActionProposals(GameState s, Move m, Piece mover, List<Proposal> into)
     {
+        if (m.Is(MoveFlags.Cast))
+        {
+            BuildAbilityActionProposals(s, m, mover, into);
+            return;
+        }
+
         var source = SourceRef.ForPiece(mover, -1, mover.Square);
 
         if (m.Is(MoveFlags.EnPassant))
@@ -114,6 +125,20 @@ public static class Game
             int dir = Math.Sign(m.To - m.From);
             into.Add(Proposal.Move(partner, m.From + dir, Causes.Castle) with { Source = source });
         }
+    }
+
+    /// <summary>
+    /// A cast names its ability by index (<see cref="Move.Aux"/>); that ability builds the proposals and is
+    /// their source. A stale index or an ability that proposes nothing leaves the list empty (rejected).
+    /// </summary>
+    private static void BuildAbilityActionProposals(GameState s, Move m, Piece mover, List<Proposal> into)
+    {
+        if ((uint)m.Aux >= (uint)mover.Abilities.Count) return;
+        var ability = mover.Abilities[m.Aux];
+        int first = into.Count;
+        ability.Def.ProposeAction(s, mover, ability, m, into);
+        var source = SourceRef.ForPiece(mover, m.Aux, mover.Square);
+        for (int i = first; i < into.Count; i++) into[i] = into[i] with { Source = source };
     }
 
     private static void RunTurnPhase(GameState state, string phase, Fact start, in ResolveOptions options, TurnTrace? trace)
