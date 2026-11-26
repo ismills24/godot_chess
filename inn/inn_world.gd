@@ -111,6 +111,7 @@ var _hearth_brick: ShaderMaterial
 var _sparks: MultiMesh
 var _patrons: Array[Node3D] = []
 var _bar_regulars: Array[Node3D] = []
+var _street: Node3D
 
 ## The regulars at the small tables, by "table index:side" (sides: 0 +z, 1 -z, 2 +x, 3 -x;
 ## tables as in _build_tables, 2 is the one behind the chess table). Most of them have seen
@@ -205,6 +206,7 @@ func build() -> void:
 
 func set_reduced_motion(enabled: bool) -> void:
 	super(enabled)
+	_street.set_reduced_motion(enabled)
 	for patron in _patrons:
 		patron.set_reduced_motion(enabled)
 
@@ -262,9 +264,9 @@ func _build_shell() -> void:
 	for brace: float in [-0.7, 0.7]:
 		_box(_timber, leaf + Vector3(-0.035, brace, 0), Vector3(0.025, 0.1, Street.DOOR_WIDTH - 0.1))
 	_box(_iron, leaf + Vector3(-0.05, 0.05, -0.4), Vector3(0.03, 0.12, 0.05))
-	var street := Street.new()
-	add_child(street)
-	street.build()
+	_street = Street.new()
+	add_child(_street)
+	_street.build()
 	for post in 4:
 		var x := LEFT_WALL + 1.0 + post * 2.0
 		var tall := _vault_height(x)

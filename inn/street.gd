@@ -12,6 +12,8 @@ const COBBLE_NORMAL := preload("res://menu/props/cobbles_normal.jpg")
 const STREET_COBBLES := preload("res://inn/street_cobbles.gdshader")
 const STREET_RAIN := preload("res://inn/street_rain.gdshader")
 const MIST := preload("res://menu/mist.gdshader")
+const SIGN_WOOD := preload("res://menu/sign_wood.gdshader")
+const SIGN_METALWORK := preload("res://inn/props/hanging_pawn_sign.glb")
 
 ## The inn's frontage: left and right ends, the outer face, the door (centre x, width, height).
 const INN_LEFT := -5.1
@@ -42,7 +44,7 @@ var _glass := _glowing(Color("d0681c"), 1.0)
 var _paving: ShaderMaterial
 var _rain: ShaderMaterial
 var _lamp: OmniLight3D
-var _board: Node3D
+var _pawn_swing: Node3D
 
 
 func build() -> void:
@@ -61,7 +63,8 @@ func _animate() -> void:
 	super()
 	_lamp.light_energy = 2.3 + 0.15 * sin(_elapsed * 6.1) + 0.06 * sin(_elapsed * 14.2)
 	_paving.set_shader_parameter("lantern_strength", _lamp.light_energy)
-	_board.rotation.x = 0.035 * sin(_elapsed * 1.2)
+	# The base nail is the pivot: the loose pawn hangs head-down, the board stays level.
+	_pawn_swing.rotation.z = PI + 0.24 * sin(_elapsed * 2.4 + 0.7)
 
 
 func _build_ground() -> void:
@@ -182,24 +185,24 @@ func _window(at: Vector3, lit: bool) -> void:
 	_box(_stone, at + Vector3(0, 0.77, 0.14), Vector3(1.14, 0.14, 0.33))
 
 
-## THE HANGING PAWN: a board hung on chains from the jetty beam over the door.
+## THE HANGING PAWN: a level board with stamped letters and one loose pawn plaque.
 func _build_sign() -> void:
 	const SIZE := Vector2(1.9, 0.66)
-	## Hung a little crooked: one chain longer than the other drops the right end.
-	const TILT := -0.1
 	var hang := Vector3(DOOR_X, GROUND_STOREY - 0.02, FACE_Z + 0.3)
-	_board = _pivot(self, hang)
+	var board_mount := _pivot(self, hang)
+	board_mount.name = "SignMount"
 	var centre := Vector3(0, -0.32 - SIZE.y * 0.5, 0)
-	var face := _pivot(_board, centre)
-	face.rotation.z = TILT
+	var face := _pivot(board_mount, centre)
+	face.name = "SignBoard"
 	var chain := _paint(Color("1e1b19"), 0.6, 0.6)
 	for side: int in [-1, 1]:
 		var x := side * (SIZE.x * 0.5 - 0.12)
-		# Where this chain meets the board's top edge once it's tilted.
-		var hook := centre + Vector3(x, SIZE.y * 0.5 + 0.02, 0).rotated(Vector3.BACK, TILT)
-		_box_mesh(_board, chain, Vector3(hook.x, hook.y * 0.5, 0), Vector3(0.025, -hook.y, 0.025))
-		_box_mesh(_board, _iron, Vector3(hook.x, 0.0, 0), Vector3(0.08, 0.05, 0.12))
-	var board := _paint(Color("24170e"), 0.85)
+		var hook := centre + Vector3(x, SIZE.y * 0.5 + 0.02, 0)
+		_box_mesh(board_mount, chain, Vector3(hook.x, hook.y * 0.5, 0), Vector3(0.025, -hook.y, 0.025))
+		_box_mesh(board_mount, _iron, Vector3(hook.x, 0.0, 0), Vector3(0.08, 0.05, 0.12))
+	var board := ShaderMaterial.new()
+	board.shader = SIGN_WOOD
+	board.set_shader_parameter("wood_color", Color("382316"))
 	for plank in 3:
 		_box_mesh(face, board, Vector3(0, (plank - 1) * SIZE.y / 3.0, 0.004 * (plank % 2)),
 			Vector3(SIZE.x - 0.02 * (plank % 2), SIZE.y / 3.0 - 0.008, 0.05))
@@ -207,50 +210,12 @@ func _build_sign() -> void:
 		_box_mesh(face, _timber, Vector3(0, edge * (SIZE.y * 0.5 + 0.02), 0.005), Vector3(SIZE.x + 0.08, 0.045, 0.07))
 		_box_mesh(face, _timber, Vector3(edge * (SIZE.x * 0.5 + 0.02), 0, 0.005), Vector3(0.045, SIZE.y + 0.08, 0.07))
 		_box_mesh(face, _iron, Vector3(edge * (SIZE.x * 0.5 - 0.12), 0, 0.03), Vector3(0.05, SIZE.y + 0.09, 0.012))
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Georgia", "Liberation Serif", "Noto Serif", "DejaVu Serif"])
-	font.font_weight = 900
-	var gilt := _glowing(Color("d8a458"), 0.45)
-	_sign_text(face, font, gilt, "THE HANGING", 0.0017, Vector3(0, 0.15, 0.035))
-	# PAWN and a gilt pawn beside it, the pair centred on the board.
-	const PAWN_GAP := 0.07
-	const CELL := 0.023
-	var word := font.get_string_size("PAWN", HORIZONTAL_ALIGNMENT_LEFT, -1, 96).x * 0.003
-	var pawn_width := CELL * 6.0
-	var shift := (PAWN_GAP + pawn_width) * 0.5
-	_sign_text(face, font, gilt, "PAWN", 0.003, Vector3(-shift, -0.1, 0.035))
-	_sign_pawn(face, gilt, Vector3(word * 0.5 - shift + PAWN_GAP + pawn_width * 0.5, -0.1, 0.035), CELL)
-
-
-func _sign_text(parent: Node3D, font: Font, material: Material, text: String, pixel: float, at: Vector3) -> void:
-	var letters := TextMesh.new()
-	letters.text = text
-	letters.font = font
-	letters.font_size = 96
-	letters.pixel_size = pixel
-	letters.depth = 0.01
-	_mesh(parent, letters, material, at)
-
-
-## A blocky pawn in relief, `cell` metres per block, centred on `at`.
-func _sign_pawn(parent: Node3D, material: Material, at: Vector3, cell: float) -> void:
-	const ART := [
-		"..##..",
-		".####.",
-		".####.",
-		"..##..",
-		".####.",
-		"..##..",
-		"..##..",
-		".####.",
-		"######",
-		"######",
-	]
-	for row in ART.size():
-		for column in 6:
-			if ART[row][column] == "#":
-				var spot := Vector3((column - 2.5) * cell, (ART.size() * 0.5 - row - 0.5) * cell, 0)
-				_box_mesh(parent, material, at + spot, Vector3(cell, cell, 0.012))
+	# Beveled lettering, a pierced brass pawn and a stationary nail, authored by the
+	# asset harness. Only the pawn is a child of the moving base pivot.
+	var metalwork := SIGN_METALWORK.instantiate()
+	face.add_child(metalwork)
+	_pawn_swing = metalwork.get_node("PawnPivot") as Node3D
+	_pawn_swing.rotation.z = PI
 
 
 ## Empties stacked against the wall by the door: slatted crates, one knocked askew.

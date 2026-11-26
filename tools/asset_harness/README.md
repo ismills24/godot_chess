@@ -78,6 +78,25 @@ dithering to the live scene.
 
 ## Generate
 
+### Inn sign metalwork
+
+The Hanging Pawn's beveled brass lettering and pierced pawn plaque are authored precisely
+in Blender, with the existing harness configuration. Rebuild the small runtime GLB with:
+
+```powershell
+$blender = python tools/asset_harness/harness_config.py blender
+& $blender --background --factory-startup --disable-autoexec --threads 1 --python-exit-code 1 --python tools/asset_harness/export_inn_sign.py
+```
+
+This writes `inn/props/hanging_pawn_sign.glb` and retains the source `.blend` and report in
+`artifacts/asset_harness/inn_sign/`. Georgia Bold is used by default; on another machine,
+append `-- --font /path/to/bold-serif.ttf`. The mesh contains the lettering, a fixed nail,
+and `PawnPivot`, whose origin is the hole in the pawn's base. `inn/street.gd` supplies the
+level wooden board and rotates only `PawnPivot` around local Z, centered on PI radians so
+the pawn hangs upside down. No font file or Blender installation is needed at runtime.
+
+### Image-to-3D
+
 ```powershell
 python tools/asset_harness/harness.py generate C:/path/reference.png --wait
 python tools/asset_harness/harness.py generate C:/path/reference.png --textured --wait
