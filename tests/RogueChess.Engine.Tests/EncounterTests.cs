@@ -38,6 +38,35 @@ public class EncounterTests
         Assert.Equal("\"casual\"", set.Encounters[0].Ai);
     }
 
+    [Fact]
+    public void Army_pieces_list_limits_what_the_budget_buys()
+    {
+        var spec = new ArmySpec { PieceValue = 20, HasKing = false, MinimumPawns = 0, Pieces = new[] { "Knight", "pawn" } };
+        for (ulong seed = 1; seed <= 20; seed++)
+        {
+            var army = EncounterGenerator.GenerateArmy(spec, Catalog, seed);
+            Assert.NotEmpty(army);
+            Assert.All(army, p => Assert.True(p.Def == StandardPieces.Knight || p.Def == StandardPieces.Pawn, p.ToString()));
+            Assert.True(army.Sum(p => p.Def.Value) <= 20);
+        }
+    }
+
+    [Fact]
+    public void Army_pieces_list_without_a_pawn_forces_no_pawns()
+    {
+        var spec = new ArmySpec { PieceValue = 9, MinimumPawns = 2, HasKing = false, Pieces = new[] { "Knight" } };
+        var army = EncounterGenerator.GenerateArmy(spec, Catalog, 3);
+        Assert.NotEmpty(army);
+        Assert.All(army, p => Assert.Equal(StandardPieces.Knight, p.Def));
+    }
+
+    [Fact]
+    public void Unknown_piece_ids_in_an_encounter_set_are_listed()
+    {
+        var set = EncounterSet.Parse("""{ "player": { "pieces": ["Knight", "Dragon"] }, "encounters": [] }""");
+        Assert.Equal(new[] { "Dragon" }, set.UnknownPieces(Catalog));
+    }
+
     [Theory]
     [InlineData(8, 0)]
     [InlineData(10, 1)]

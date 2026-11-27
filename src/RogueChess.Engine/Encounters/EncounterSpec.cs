@@ -14,6 +14,12 @@ public sealed record ArmySpec
     public int MinimumPawns { get; init; } = 2;
     public bool HasKing { get; init; } = true;
 
+    /// <summary>
+    /// Pieces the budget may buy (ids or aliases). Null = every buyable piece in the catalog. When set, the
+    /// minimum pawns are only forced if a pawn is in the list.
+    /// </summary>
+    public IReadOnlyList<string>? Pieces { get; init; }
+
     /// <summary>Abilities the budget may buy (ids). Null = every ability in the catalog.</summary>
     public IReadOnlyList<string>? Abilities { get; init; }
 
@@ -62,6 +68,14 @@ public sealed record EncounterSet
             throw new FormatException($"invalid encounter set: {e.Message}", e);
         }
     }
+
+    /// <summary>Piece ids named anywhere in the set that the catalog doesn't have.</summary>
+    public IReadOnlyList<string> UnknownPieces(Content.Catalog catalog) =>
+        new[] { Player }.Concat(Encounters.Select(e => e.Enemy))
+            .SelectMany(a => a.Pieces ?? Array.Empty<string>())
+            .Where(id => catalog.FindPiece(id) == null)
+            .Distinct()
+            .ToList();
 
     /// <summary>Ability ids named anywhere in the set that the catalog doesn't have (content not ported yet).</summary>
     public IReadOnlyList<string> UnknownAbilities(Content.Catalog catalog) =>

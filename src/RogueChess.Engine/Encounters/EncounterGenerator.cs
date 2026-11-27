@@ -38,12 +38,19 @@ public static class EncounterGenerator
         var royal = catalog.Pieces.FirstOrDefault(p => p.IsRoyal);
         if (spec.HasKing && royal != null) Add(royal);
 
-        var pawn = catalog.Pieces.FirstOrDefault(p => p.IsPawn) ?? StandardPieces.Pawn;
+        var allowed = spec.Pieces?.Select(catalog.FindPiece).OfType<PieceDef>().ToHashSet();
+        var pawn = allowed == null
+            ? catalog.Pieces.FirstOrDefault(p => p.IsPawn) ?? StandardPieces.Pawn
+            : allowed.Where(p => p.IsPawn).OrderBy(p => p.Id, StringComparer.Ordinal).FirstOrDefault();
         int budget = spec.PieceValue;
-        int pawns = Math.Min(spec.MinimumPawns, pawn.Value > 0 ? budget / pawn.Value : spec.MinimumPawns);
-        for (int i = 0; i < pawns; i++) { Add(pawn); budget -= pawn.Value; }
+        if (pawn != null)
+        {
+            int pawns = Math.Min(spec.MinimumPawns, pawn.Value > 0 ? budget / pawn.Value : spec.MinimumPawns);
+            for (int i = 0; i < pawns; i++) { Add(pawn); budget -= pawn.Value; }
+        }
 
-        var buyable = catalog.Pieces.Where(p => !p.IsRoyal && p.Value > 0).OrderBy(p => p.Id, StringComparer.Ordinal).ToList();
+        var buyable = catalog.Pieces.Where(p => !p.IsRoyal && p.Value > 0 && (allowed == null || allowed.Contains(p)))
+            .OrderBy(p => p.Id, StringComparer.Ordinal).ToList();
         while (budget > 0)
         {
             var affordable = buyable.Where(p => p.Value <= budget).ToList();
