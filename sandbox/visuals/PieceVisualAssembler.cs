@@ -8,7 +8,7 @@ namespace GodotChess.Sandbox.Visuals;
 public static class PieceVisualAssembler
 {
     /// <summary>The pieces' finish (wood_hd_piece.gd's style), shared with inn/chess_set.gd.</summary>
-    public static string PieceStyle = "porcelain";
+    public static string PieceStyle = "wood";
 
     private static readonly HashSet<string> WoodKinds = new() { "pawn", "knight", "bishop", "rook", "queen", "king" };
 

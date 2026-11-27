@@ -42,6 +42,9 @@ public sealed class BattleHandler : IEncounterHandler
 {
     private readonly Catalog _catalog = ContentLibrary.CreateCatalog();
     private readonly IBattleUndoPolicy _undoPolicy;
+    /// <summary>The largest board side any battle may use, scene boards included.</summary>
+    public const int MaxBoardSide = 10;
+    // Kept so the handler version (and existing run manifests) still name scene encounters.
     private readonly bool _requireInnBoard;
     public string Version => $"battle-v1/{_undoPolicy.Version}/inn={_requireInnBoard}";
     public BattleHandler(IBattleUndoPolicy? undoPolicy = null, bool requireInnBoard = false)
@@ -50,7 +53,7 @@ public sealed class BattleHandler : IEncounterHandler
     public EncounterDefinition Resolve(EncounterDefinition definition)
     {
         var parameters = RunJson.Decode<BattleParameters>(definition.Parameters);
-        if (parameters.Width < 2 || parameters.Width > 12 || parameters.Height < 2 || parameters.Height > 12
+        if (parameters.Width < 2 || parameters.Width > MaxBoardSide || parameters.Height < 2 || parameters.Height > MaxBoardSide
             || parameters.Player.PieceValue < 0 || parameters.Player.PieceValue > 100
             || parameters.Enemy.PieceValue < 0 || parameters.Enemy.PieceValue > 100
             || parameters.Player.AbilityValue < 0 || parameters.Player.AbilityValue > 100
@@ -66,15 +69,13 @@ public sealed class BattleHandler : IEncounterHandler
         _ = new AgentFactory().Create(ai);
         parameters = parameters with { Ai = ai };
         var resolved = definition with { Parameters = RunJson.Data(parameters) };
-        // Validate FEN and the inn's fixed 8x8 presentation before a run can start.
+        // Validate a FEN before a run can start. Every board, scene or not, is at most 10x10.
         if (parameters.Fen != null)
         {
             var state = Fen.Parse(parameters.Fen, parameters.StandardRules ? RuleSet.Standard : RuleSet.Rogue);
-            if (state.Width > 12 || state.Height > 12 || (_requireInnBoard && (state.Width != 8 || state.Height != 8)))
-                throw new FormatException("The bartender scene requires an 8x8 board.");
+            if (state.Width > MaxBoardSide || state.Height > MaxBoardSide)
+                throw new FormatException($"Boards can be at most {MaxBoardSide}x{MaxBoardSide}.");
         }
-        else if (_requireInnBoard && (parameters.Width != 8 || parameters.Height != 8))
-            throw new FormatException("The bartender scene requires an 8x8 board.");
         return resolved;
     }
     public StatePayload Generate(EncounterDefinition definition, ulong seed)

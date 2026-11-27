@@ -13,8 +13,9 @@
       "x": 2,
       "y": 1,
       "parameters": {
-        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "standardRules": false,
+        "width": 6, "height": 6,
+        "player": { "pieceValue": 10, "minimumPawns": 2, "startingAbilities": ["exploding", "phantom", "predator"] },
+        "enemy": { "pieceValue": 8, "minimumPawns": 2, "abilityValue": 2 },
         "ai": {
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
@@ -42,8 +43,9 @@
       "x": 0,
       "y": 2,
       "parameters": {
-        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "standardRules": false,
+        "width": 6, "height": 6,
+        "player": { "pieceValue": 10, "minimumPawns": 2, "startingAbilities": ["exploding", "phantom", "predator"] },
+        "enemy": { "pieceValue": 8, "minimumPawns": 2, "abilityValue": 2 },
         "ai": {
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
@@ -58,8 +60,9 @@
       "x": 1,
       "y": 4,
       "parameters": {
-        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "standardRules": false,
+        "width": 6, "height": 6,
+        "player": { "pieceValue": 10, "minimumPawns": 2, "startingAbilities": ["exploding", "phantom", "predator"] },
+        "enemy": { "pieceValue": 8, "minimumPawns": 2, "abilityValue": 2 },
         "ai": {
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
@@ -74,8 +77,9 @@
       "x": 3,
       "y": 4,
       "parameters": {
-        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "standardRules": false,
+        "width": 6, "height": 6,
+        "player": { "pieceValue": 10, "minimumPawns": 2, "startingAbilities": ["exploding", "phantom", "predator"] },
+        "enemy": { "pieceValue": 8, "minimumPawns": 2, "abilityValue": 2 },
         "ai": {
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
@@ -90,8 +94,9 @@
       "x": 0,
       "y": 4,
       "parameters": {
-        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "standardRules": false,
+        "width": 6, "height": 6,
+        "player": { "pieceValue": 10, "minimumPawns": 2, "startingAbilities": ["exploding", "phantom", "predator"] },
+        "enemy": { "pieceValue": 8, "minimumPawns": 2, "abilityValue": 2 },
         "ai": {
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
@@ -106,8 +111,9 @@
       "x": 4,
       "y": 1,
       "parameters": {
-        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "standardRules": false,
+        "width": 6, "height": 6,
+        "player": { "pieceValue": 10, "minimumPawns": 2, "startingAbilities": ["exploding", "phantom", "predator"] },
+        "enemy": { "pieceValue": 8, "minimumPawns": 2, "abilityValue": 2 },
         "ai": {
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,

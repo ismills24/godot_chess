@@ -60,6 +60,11 @@ var _match: Node
 var _board: Node3D
 var _hud: CanvasLayer
 var _status: Label
+## What's under the cursor (the piece and its abilities, a special square).
+var _hint: Label
+## Whether you're seated and the game takes input (the match exists from the start, so the
+## board shows the game's size and armies as you walk in).
+var _playing := false
 var _undo_button: Button
 var _leave_button: Button
 var _chosen := -1
@@ -80,6 +85,13 @@ func _ready() -> void:
 	_world.build()
 	_world.set_reduced_motion(_reduced_motion)
 	_board = _world.board
+	# The game decides the board's size and what stands on it, before you set off.
+	_match = InnMatch.new()
+	add_child(_match)
+	_match.Begin(false)
+	_board.resize(_match.Width, _match.Height)
+	_board.show_pieces(_match.Pieces(), false)
+	_board.show_tiles(_match.Tiles())
 	_build_walk()
 	_camera.transform = _walk_shot(0.0)
 	get_viewport().size_changed.connect(_frame_stage)
@@ -110,14 +122,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		# In a run, Escape concedes (or returns to the map once the game is over).
-		if _match:
+		if _playing:
 			_match.Leave()
 		elif get_parent().has_method("LeaveEncounter"):
 			get_parent().LeaveEncounter()
 		else:
 			get_tree().change_scene_to_file(MENU_SCENE)
 		return
-	if not _match:
+	if not _playing:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()
@@ -129,6 +141,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var square := _square_under(event.position)
 		var live: bool = square >= 0 and (square in _reach or _match.IsMine(square))
 		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if live else Input.CURSOR_ARROW)
+		if _hint:
+			_hint.text = _match.Describe(square)
 
 
 func _frame_stage() -> void:
@@ -196,8 +210,6 @@ func _begin_play() -> void:
 	add_child(sharp)
 	sharp.punch_through(_world.opponent, _board)
 	sharp.reveal(_board)
-	_match = InnMatch.new()
-	add_child(_match)
 	_match.connect("Moved", _on_moved)
 	_match.connect("Thinking", func() -> void:
 		_say(_world.opponent_name + " considers the board...")
@@ -208,14 +220,17 @@ func _begin_play() -> void:
 	_match.connect("Failed", func(message: String) -> void:
 		_on_refreshed()
 		_say(message))
-	_match.Begin(AUTOPLAY_ARG in OS.get_cmdline_user_args())
+	if AUTOPLAY_ARG in OS.get_cmdline_user_args():
+		_match.Begin(true)
 	_board.show_pieces(_match.Pieces(), false)
+	_playing = true
 	_build_hud()
 	_say("Your move.")
 
 
 func _on_refreshed() -> void:
 	_board.show_pieces(_match.Pieces(), false)
+	_board.show_tiles(_match.Tiles())
 	_chosen = -1
 	_refresh_marks()
 	_undo_button.disabled = not _match.CanUndo()
@@ -227,9 +242,10 @@ func _on_refreshed() -> void:
 func _on_moved(from: int, to: int, by_opponent: bool) -> void:
 	if by_opponent:
 		# Their piece moves as their hand gets to it.
-		_world.opponent.reach(_board.to_global(ChessSet.square_center(from % 8, from / 8)))
+		_world.opponent.reach(_board.to_global(_board.square_point(from)))
 		await get_tree().create_timer(REACH_SECONDS).timeout
 	_board.show_pieces(_match.Pieces())
+	_board.show_tiles(_match.Tiles())
 	_last = [from, to]
 	_chosen = -1
 	_refresh_marks()
@@ -282,8 +298,7 @@ func _square_under(point: Vector2) -> int:
 	if absf(along.y) < 0.0001:
 		return -1
 	var hit := origin + along * ((surface - origin.y) / along.y)
-	var square: Vector2i = ChessSet.square_at(_board.to_local(hit))
-	return -1 if square.x < 0 else square.y * 8 + square.x
+	return _board.square_index_at(_board.to_local(hit))
 
 
 ## A soft light over the board while you play, in the place's own colour.
@@ -337,6 +352,14 @@ func _build_hud() -> void:
 	_status.offset_bottom = -28
 	_status.modulate.a = 0.0
 	_hud.add_child(_status)
+	_hint = _status.duplicate()
+	_hint.add_theme_font_size_override("font_size", 20)
+	_hint.add_theme_color_override("font_color", Color("d8c8a8"))
+	_hint.offset_top = -100
+	_hint.offset_bottom = -68
+	_hint.text = ""
+	_hud.add_child(_hint)
+	create_tween().tween_property(_hint, "modulate:a", 1.0, 0.6)
 	create_tween().tween_property(_status, "modulate:a", 1.0, 0.6)
 
 

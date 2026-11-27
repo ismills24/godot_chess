@@ -109,6 +109,11 @@ var _match: Node
 var _board: Node3D
 var _hud: CanvasLayer
 var _status: Label
+## What's under the cursor (the piece and its abilities, a special square).
+var _hint: Label
+## Whether you're seated and the game takes input (the match exists from the start, so the
+## board he serves already has the game's size and armies on it).
+var _playing := false
 var _undo_button: Button
 var _leave_button: Button
 ## Your picked-up piece's square, where it can go and which of those are captures; the
@@ -133,6 +138,14 @@ func _ready() -> void:
 		_reduced_motion = config.get_value("display", "reduced_motion", false) == true
 	_world.build()
 	_bartender.build(InnWorld.BARTENDER_POST, -PI * 0.5, InnWorld.BAR_BOARD_AT, InnWorld.BOARD_SHELF_Y)
+	# The game decides the board's size and what stands on it before he brings it over.
+	_board = _bartender.board()
+	_match = InnMatch.new()
+	add_child(_match)
+	_match.Begin(false)
+	_board.resize(_match.Width, _match.Height)
+	_board.show_pieces(_match.Pieces(), false)
+	_board.show_tiles(_match.Tiles())
 	_world.set_reduced_motion(_reduced_motion)
 	_bartender.set_reduced_motion(_reduced_motion)
 	_build_walk()
@@ -192,14 +205,14 @@ func _exit_tree() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
-		if _match:
+		if _playing:
 			_match.Leave()
 		elif get_parent().has_method("LeaveEncounter"):
 			get_parent().LeaveEncounter()
 		else:
 			get_tree().change_scene_to_file(MENU_SCENE)
 		return
-	if not _match:
+	if not _playing:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()
@@ -212,6 +225,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var square := _square_under(event.position)
 		var live: bool = square >= 0 and (square in _reach or _match.IsMine(square))
 		Input.set_default_cursor_shape(Input.CURSOR_POINTING_HAND if live else Input.CURSOR_ARROW)
+		if _hint:
+			_hint.text = _match.Describe(square)
 
 
 func _frame_stage() -> void:
@@ -295,7 +310,6 @@ func _on_served() -> void:
 
 ## Starts the game on the served board: your White, the bartender's Black.
 func _begin_play() -> void:
-	_board = _bartender.board()
 	_light_board()
 	# The board and pieces in play, drawn at full resolution over the pixel stage; the
 	# opponent's arm still shows over them when it reaches across.
@@ -304,8 +318,6 @@ func _begin_play() -> void:
 	add_child(sharp)
 	sharp.punch_through(_bartender, _board)
 	sharp.reveal(_board)
-	_match = InnMatch.new()
-	add_child(_match)
 	_match.connect("Moved", _on_moved)
 	_match.connect("Thinking", func() -> void:
 		_say("The bartender considers his move...")
@@ -316,14 +328,17 @@ func _begin_play() -> void:
 	_match.connect("Failed", func(message: String) -> void:
 		_on_refreshed()
 		_say(message))
-	_match.Begin(AUTOPLAY_ARG in OS.get_cmdline_user_args())
+	if AUTOPLAY_ARG in OS.get_cmdline_user_args():
+		_match.Begin(true)
 	_board.show_pieces(_match.Pieces(), false)
+	_playing = true
 	_build_hud()
 	_say("Your move.")
 
 
 func _on_refreshed() -> void:
 	_board.show_pieces(_match.Pieces(), false)
+	_board.show_tiles(_match.Tiles())
 	_chosen = -1
 	_refresh_marks()
 	_undo_button.disabled = not _match.CanUndo()
@@ -338,6 +353,7 @@ func _on_moved(from: int, to: int, by_bartender: bool) -> void:
 		_bartender.reach()
 		await get_tree().create_timer(REACH_SECONDS).timeout
 	_board.show_pieces(_match.Pieces())
+	_board.show_tiles(_match.Tiles())
 	_last = [from, to]
 	_chosen = -1
 	_refresh_marks()
@@ -406,8 +422,7 @@ func _square_under(point: Vector2) -> int:
 	if absf(along.y) < 0.0001:
 		return -1
 	var hit := origin + along * ((surface - origin.y) / along.y)
-	var square: Vector2i = ChessSet.square_at(_board.to_local(hit))
-	return -1 if square.x < 0 else square.y * 8 + square.x
+	return _board.square_index_at(_board.to_local(hit))
 
 
 ## A low candle-warm light hung over the board while you play, so both sides' pieces read.
@@ -462,6 +477,14 @@ func _build_hud() -> void:
 	_status.offset_bottom = -28
 	_status.modulate.a = 0.0
 	_hud.add_child(_status)
+	_hint = _status.duplicate()
+	_hint.add_theme_font_size_override("font_size", 20)
+	_hint.add_theme_color_override("font_color", Color("d8c8a8"))
+	_hint.offset_top = -100
+	_hint.offset_bottom = -68
+	_hint.text = ""
+	_hud.add_child(_hint)
+	create_tween().tween_property(_hint, "modulate:a", 1.0, 0.6)
 	create_tween().tween_property(_status, "modulate:a", 1.0, 0.6)
 
 

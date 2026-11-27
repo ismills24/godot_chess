@@ -28,7 +28,9 @@ public partial class VerifyRunFlow : Node
             var match = Find<InnMatch>(host);
             Require(match.IsPlayerTurn(), "Bartender did not attach to the run.");
             Require(host.Session!.Sequence == 1, "Entering the inn must record one world command.");
-            Require(match.TryMove(12, 28), "Player move rejected.");
+            // The inn's board is generated (any size), so play the first legal move found.
+            var from = Enumerable.Range(0, match.Width * match.Height).First(sq => match.Targets(sq).Length > 0);
+            Require(match.TryMove(from, match.Targets(from)[0]), "Player move rejected.");
             await Until(() => match.IsPlayerTurn());
             Require(host.Session.Sequence == 2, "AI response must not create a second command.");
             Require(match.Undo(), "Undo was unavailable.");

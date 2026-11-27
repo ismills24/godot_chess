@@ -7,6 +7,8 @@
 uniform bool frame = false;
 // The width of one square in the chess set's units (chess_set.gd SQUARE).
 uniform float square_size = 0.055;
+// The board's size in squares (files, ranks); chess_set.gd sets it for boards other than 8x8.
+uniform vec2 board_size = vec2(8.0, 8.0);
 varying vec3 local_position;
 varying vec3 local_normal;
 
@@ -16,7 +18,7 @@ void vertex() {
 }
 
 vec2 board_point() {
-    return local_position.xz / square_size + 4.0;
+    return local_position.xz / square_size + board_size * 0.5;
 }
 
 float board_fbm(vec3 p) {
@@ -25,10 +27,11 @@ float board_fbm(vec3 p) {
 }
 
 // 1 on a light square, 0 on a dark one, blended across the edge over one screen pixel so the
-// grid stays clean at any distance (h1 is light, a1 dark).
+// grid stays clean at any distance. The near-left corner (a1) is always dark, as in chess,
+// whatever the board's size.
 float board_light(vec2 q) {
     vec2 cell = floor(q);
-    float light = 1.0 - mod(cell.x + cell.y, 2.0);
+    float light = mod(cell.x + cell.y + board_size.y - 1.0, 2.0);
     vec2 inside = 0.5 - abs(fract(q) - 0.5);
     vec2 pixel = max(fwidth(q), vec2(1e-5));
     float sharp = min(smoothstep(0.0, pixel.x, inside.x), smoothstep(0.0, pixel.y, inside.y));
@@ -52,8 +55,8 @@ float frame_line(float inset, float width) {
     if (local_normal.y < 0.5) {
         return 0.0;
     }
-    vec2 q = board_point() - 4.0;
-    float out_of_field = max(abs(q.x), abs(q.y)) - 4.0;
+    vec2 q = board_point() - board_size * 0.5;
+    float out_of_field = max(abs(q.x) - board_size.x * 0.5, abs(q.y) - board_size.y * 0.5);
     float d = abs(out_of_field - inset) - width * 0.5;
     float pixel = max(fwidth(out_of_field), 1e-5);
     return 1.0 - smoothstep(0.0, pixel, d);

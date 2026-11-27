@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using GodotChess.Run;
+using GodotChess.Sandbox;
 using RogueChess.Engine.AI;
 using RogueChess.Engine.Content;
 using RogueChess.Engine.Core;
@@ -42,6 +43,24 @@ public partial class InnMatch : Node
     public int Height => _state.Height;
     public GameState DisplayState => _state;
 
+    /// <summary>The standalone preview's game (F6 on a scene): the run's rogue battle on a 6x6 board.</summary>
+    private static readonly BattleParameters PreviewBattle = new()
+    {
+        Width = 6, Height = 6,
+        Player = new() { PieceValue = 10, MinimumPawns = 2, StartingAbilities = new[] { "exploding", "phantom", "predator" } },
+        Enemy = new() { PieceValue = 8, MinimumPawns = 2, AbilityValue = 2 },
+    };
+
+    /// <summary>The preview's battle, at the size `-- --board=WxH` asks for (up to 10x10).</summary>
+    private static BattleParameters PreviewBoard()
+    {
+        string? arg = OS.GetCmdlineUserArgs().FirstOrDefault(a => a.StartsWith("--board=", StringComparison.Ordinal));
+        var size = arg?["--board=".Length..].Split('x');
+        if (size is { Length: 2 } && int.TryParse(size[0], out int w) && int.TryParse(size[1], out int h))
+            return PreviewBattle with { Width = Math.Clamp(w, 2, BattleHandler.MaxBoardSide), Height = Math.Clamp(h, 2, BattleHandler.MaxBoardSide) };
+        return PreviewBattle;
+    }
+
     public void Begin(bool autoplay = false)
     {
         Cancel();
@@ -61,7 +80,7 @@ public partial class InnMatch : Node
                 StartX = 0, Encounters = new()
                 {
                     new() { Id = _encounterId, Kind = "bartender", X = 1, Y = 1,
-                        Parameters = RunJson.Data(new BattleParameters { Fen = Fen.StartPosition, StandardRules = false }) },
+                        Parameters = RunJson.Data(PreviewBoard()) },
                 },
             });
             _session.Execute(RunCommand.Create("world.move", new WorldMove(1, 1)));
@@ -81,9 +100,48 @@ public partial class InnMatch : Node
     {
         var list = new Godot.Collections.Array<Godot.Collections.Dictionary>();
         foreach (var p in _state.PiecesOnBoard())
-            list.Add(new Godot.Collections.Dictionary { ["id"] = p.Id, ["square"] = p.Square,
+        {
+            var badges = new Godot.Collections.Array<Godot.Collections.Dictionary>();
+            foreach (var ability in p.Abilities)
+                badges.Add(new Godot.Collections.Dictionary { ["code"] = BoardView.BadgeCode(ability.Def.Id, ability.Def.Name),
+                    ["color"] = BoardView.BadgeColor(ability.Def.Id).Lightened(0.35f), ["name"] = ability.Def.Name });
+            list.Add(new Godot.Collections.Dictionary { ["id"] = p.Id, ["square"] = p.Square, ["badges"] = badges,
                 ["symbol"] = (p.Side == Side.White ? char.ToUpperInvariant(p.Def.Symbol) : char.ToLowerInvariant(p.Def.Symbol)).ToString() });
+        }
         return list;
+    }
+    /// <summary>The board's special squares (walls, fire, tombs...): {square, name, color}.</summary>
+    public Godot.Collections.Array<Godot.Collections.Dictionary> Tiles()
+    {
+        var list = new Godot.Collections.Array<Godot.Collections.Dictionary>();
+        for (int sq = 0; sq < _state.Area; sq++)
+        {
+            var tile = _state.TileAt(sq);
+            if (tile.Def.IsDefault) continue;
+            list.Add(new Godot.Collections.Dictionary { ["square"] = sq, ["name"] = tile.Def.Name, ["color"] = TileColor(tile.Def.Id) });
+        }
+        return list;
+    }
+    private static Color TileColor(string id) => id switch
+    {
+        "wall" => Colors.Silver, "guardian" => Colors.Gold, "fog" => Colors.LightSteelBlue,
+        "fire" => new Color(1f, 0.45f, 0.1f), "freeze" => new Color(0.55f, 0.85f, 1f), "tomb" => new Color(0.6f, 0.55f, 0.5f),
+        _ => Colors.Orchid,
+    };
+    /// <summary>What's on a square, for the hover line: "Your Knight: Exploding, Phantom".</summary>
+    public string Describe(int square)
+    {
+        if (square < 0 || square >= _state.Area) return "";
+        var parts = new List<string>();
+        if (_state.PieceAt(square) is { } piece)
+        {
+            string owner = piece.Side == Side.White ? "Your" : "Their";
+            parts.Add(piece.Abilities.Count == 0 ? $"{owner} {piece.Def.Name}"
+                : $"{owner} {piece.Def.Name}: {string.Join(", ", piece.Abilities.Select(a => a.Def.Name))}");
+        }
+        var tile = _state.TileAt(square);
+        if (!tile.Def.IsDefault) parts.Add(tile.Def.Name);
+        return string.Join("  ·  ", parts);
     }
     private List<Move> Legal()
     {
