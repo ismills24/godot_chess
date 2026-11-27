@@ -41,9 +41,11 @@ Per step, in one wave:
   `tidal-wave`).
 - A piece whose next square would be off the board gets `Destroy` (cause `tidal-wave`, no killer: nobody is
   credited).
+- Walls hold pieces back: the effect proposes no move into a square whose tile blocks passage or landing (the engine
+  alone would let the piece onto a wall and break it, so the effect checks this itself, as Slippery does).
 - The engine's sliding-block rules resolve the rest: a whole column shifts together because each square is vacated
-  in the same wave. A move into a wall or a piece that stays put is blocked, and the blocked piece just stays where it
-  is (no freeze, unlike Wind Gust).
+  in the same wave. A move into a piece that stays put (held by a wall, or not on an affected square) is blocked,
+  and the blocked piece just stays where it is (no freeze, unlike Wind Gust).
 - Each step reads the board as it is then: a piece that moved onto an affected square is pulled by the next step,
   and a piece that left the area is not.
 
