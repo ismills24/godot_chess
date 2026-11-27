@@ -45,6 +45,8 @@ public static class ContentLibrary
             .AddConsumable(ExtraTurnPotion.Instance, "ExtraTurnPotion")
             .AddConsumable(FortifyPotion.Instance, "FortifyPotion")
             // board effects (WallsPlacement, WindGust, CheckerboardWipe) and their conditions
-            .AddBoardEffects();
+            .AddBoardEffects()
+            // handmade rosters (rosters/*.json, embedded); after the pieces and abilities they name
+            .AddEmbeddedRosters();
     }
 }

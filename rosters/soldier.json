@@ -1,0 +1,6 @@
+{
+  "id": "soldier",
+  "name": "Soldier",
+  "pieces": ["Pawn", "Knight", "Bishop"],
+  "abilities": ["Marksman", "Piercing"]
+}

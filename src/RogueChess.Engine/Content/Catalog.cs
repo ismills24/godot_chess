@@ -21,6 +21,7 @@ public sealed class Catalog
     private readonly Dictionary<string, Func<Core.Side, RelicDef>> _relics = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ConsumableDef> _consumables = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, GlobalDef> _globals = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, RosterDef> _rosters = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The standard pieces and the standard tile, under both their def ids and the prototype's names.</summary>
     public static Catalog CreateStandard()
@@ -46,6 +47,7 @@ public sealed class Catalog
     /// <summary>Register a relic under its id and aliases (e.g. "TimeBankRelic"). Relics are built per owner.</summary>
     public Catalog AddRelic(string id, Func<Core.Side, RelicDef> factory, params string[] aliases) => Add(_relics, factory, id, aliases);
 
+    public Catalog AddRoster(RosterDef def) => Add(_rosters, def, def.Id, Array.Empty<string>());
     public Catalog AddConsumable(ConsumableDef def, params string[] aliases) => Add(_consumables, def, def.Id, aliases);
 
     /// <summary>Every registered def once (aliases collapsed), in registration order. For palettes and pickers.</summary>
@@ -61,6 +63,8 @@ public sealed class Catalog
     public BoardEffectFactory? FindBoardEffect(string type) => _boardEffects.GetValueOrDefault(type);
     public Func<Core.Side, RelicDef>? FindRelic(string id) => _relics.GetValueOrDefault(id);
     public ConsumableDef? FindConsumable(string id) => _consumables.GetValueOrDefault(id);
+    public RosterDef? FindRoster(string id) => _rosters.GetValueOrDefault(id);
+    public IEnumerable<RosterDef> Rosters => _rosters.Values.Distinct();
 
     private Catalog Add<T>(Dictionary<string, T> map, T def, string id, string[] aliases)
     {

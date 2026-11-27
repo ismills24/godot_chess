@@ -9,4 +9,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="RogueChess.Engine.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Handmade rosters (repo root rosters/*.json) ship inside the engine; see RosterJson.AddEmbeddedRosters. -->
+    <EmbeddedResource Include="../../rosters/*.json" LogicalName="rosters/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>
