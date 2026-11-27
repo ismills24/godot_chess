@@ -332,6 +332,145 @@ public class BoardEffectTests
         Assert.Equal(2, new BoardEffectDef(new TurnIntervalCondition(1), new WallPerStepEffect(2)).VarCount);
     }
 
+    // ------------------------------------------------------------------ Tidal wave
+
+    /// <summary>Every square of the given (1-based) ranks.</summary>
+    private static (int X, int Y)[] Rows(int width, params int[] ranks)
+        => ranks.SelectMany(r => Enumerable.Range(0, width).Select(x => (x, r - 1))).ToArray();
+
+    private static (int X, int Y) At(string name) => (name[0] - 'a', int.Parse(name.AsSpan(1)) - 1);
+
+    private static TidalWaveEffect Wave(WaveDirection d, int strength, params string[] squares)
+        => new(d, squares.Select(At).ToArray(), strength);
+
+    [Fact] // the user's example: a wave from the north over the top three rows
+    public void Tidal_wave_pulls_the_top_rows_north_and_washes_out_the_edge()
+    {
+        var s = Rogue("r6k/Q7/N7/B7/8/8/8/7K w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), new TidalWaveEffect(WaveDirection.North, Rows(8, 6, 7, 8)));
+
+        Play(s, "h1g1");
+
+        Assert.Equal(StandardPieces.Queen, At(s, "a8")?.Def);  // a7 → a8, the rook on a8 is washed out
+        Assert.Equal(StandardPieces.Knight, At(s, "a7")?.Def); // a6 → a7
+        Assert.Null(At(s, "a6"));
+        Assert.Equal(StandardPieces.Bishop, At(s, "a5")?.Def); // outside the area: untouched
+        Assert.DoesNotContain(s.PiecesOnBoard(), p => p.Def == StandardPieces.Rook);
+    }
+
+    [Theory]
+    [InlineData(WaveDirection.North, "d5")]
+    [InlineData(WaveDirection.South, "d3")]
+    [InlineData(WaveDirection.East, "e4")]
+    [InlineData(WaveDirection.West, "c4")]
+    public void Tidal_wave_works_in_every_direction(WaveDirection direction, string landing)
+    {
+        var s = Rogue("7k/8/8/8/3R4/8/8/7K w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), Wave(direction, 1, "d4"));
+
+        Play(s, "h1g1");
+
+        Assert.Null(At(s, "d4"));
+        Assert.Equal(StandardPieces.Rook, At(s, landing)?.Def);
+    }
+
+    [Fact]
+    public void Tidal_wave_destroys_pieces_pulled_off_the_board_without_crediting_anyone()
+    {
+        var s = Rogue("N6k/8/8/8/8/8/8/7K w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), Wave(WaveDirection.North, 1, "a8"));
+        var knight = Must(s, "a8");
+
+        var m = MoveText.FindLegal(s, "h1g1")!.Value;
+        var result = Game.PlayTurn(s, m, new ResolveOptions(Trace: true));
+
+        Assert.Null(At(s, "a8"));
+        Assert.False(knight.IsOnBoard);
+        var facts = result.Trace!.AllFacts.ToList();
+        Assert.Contains(facts, f => f.Kind == FactKinds.Died && f.Piece?.Id == knight.Id && f.Cause == TidalWaveEffect.Cause);
+        Assert.DoesNotContain(facts, f => f.Kind == FactKinds.Killed && f.Source.Category == SourceCategory.Piece);
+    }
+
+    [Fact]
+    public void Tidal_wave_is_held_back_by_walls()
+    {
+        var s = Rogue("7k/P7/N7/8/8/8/8/7K w - - 0 1");
+        s.SetTile(Sq(s, "a8"), WallTile.Instance);
+        AddEffect(s, new TurnDelayCondition(1), new TidalWaveEffect(WaveDirection.North, Rows(8, 6, 7, 8)));
+
+        Play(s, "h1g1");
+
+        Assert.Equal(WallTile.Instance, s.TileAt(Sq(s, "a8")).Def);
+        Assert.Null(At(s, "a8"));
+        Assert.Equal(StandardPieces.Pawn, At(s, "a7")?.Def);
+        Assert.Equal(StandardPieces.Knight, At(s, "a6")?.Def);
+    }
+
+    [Fact]
+    public void Tidal_wave_is_blocked_by_a_piece_outside_the_area()
+    {
+        var s = Rogue("7k/8/P7/N7/8/8/8/7K w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), Wave(WaveDirection.North, 1, "a5"));
+
+        Play(s, "h1g1");
+
+        Assert.Equal(StandardPieces.Pawn, At(s, "a6")?.Def);
+        Assert.Equal(StandardPieces.Knight, At(s, "a5")?.Def);
+    }
+
+    [Fact]
+    public void Tidal_wave_strength_two_rechecks_the_area_each_step()
+    {
+        // Area: ranks 6 and 7. The knight goes a6 → a7 (still in the area) → a8. The bishop on a5 is never pulled.
+        var s = Rogue("7k/8/N7/B7/8/8/8/7K w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), new TidalWaveEffect(WaveDirection.North, Rows(8, 6, 7), strength: 2));
+
+        Play(s, "h1g1");
+
+        Assert.Equal(StandardPieces.Knight, At(s, "a8")?.Def);
+        Assert.Equal(StandardPieces.Bishop, At(s, "a5")?.Def);
+    }
+
+    [Fact]
+    public void Tidal_wave_strength_two_washes_out_two_rows()
+    {
+        var s = Rogue("N6k/N7/8/8/8/8/8/7K w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), Wave(WaveDirection.North, 2, "a7", "a8"));
+
+        Play(s, "h1g1");
+
+        Assert.Null(At(s, "a7"));
+        Assert.Null(At(s, "a8"));
+        Assert.DoesNotContain(s.PiecesOnBoard(), p => p.Def == StandardPieces.Knight);
+    }
+
+    [Fact]
+    public void Tidal_wave_ignores_affected_squares_off_the_board()
+    {
+        var s = Rogue("7k/8/8/8/3R4/8/8/7K w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), new TidalWaveEffect(WaveDirection.North, new[] { (10, 10), (3, 3) }));
+
+        Play(s, "h1g1");
+
+        Assert.Equal(StandardPieces.Rook, At(s, "d5")?.Def);
+    }
+
+    [Fact]
+    public void Tidal_wave_washing_out_a_king_ends_the_game()
+    {
+        var s = Rogue("7k/8/8/8/8/8/8/K7 w - - 0 1");
+        AddEffect(s, new TurnDelayCondition(1), Wave(WaveDirection.North, 1, "h8"));
+
+        Play(s, "a1b1");
+
+        Assert.Null(At(s, "h8"));
+        Assert.NotEqual(GameOutcome.Ongoing, s.Rules.Evaluate(s));
+    }
+
+    [Fact]
+    public void Tidal_wave_rejects_a_strength_below_one()
+        => Assert.Throws<ArgumentOutOfRangeException>(() => Wave(WaveDirection.North, 0, "a1"));
+
     // ------------------------------------------------------------------ Maps
 
     private static string LegacyMap(string name)
@@ -375,6 +514,7 @@ public class BoardEffectTests
         s.AddGlobal(new BoardEffectDef(new TurnIntervalCondition(5), new WallsPlacementEffect(2)));
         s.AddGlobal(new BoardEffectDef(new BoardValueCondition(Side.Black, 30, 2), new WallsPlacementEffect(1)));
         s.AddGlobal(new BoardEffectDef(new TurnDelayCondition(9), new WindGustEffect(Side.Black, 1)));
+        s.AddGlobal(new BoardEffectDef(new TurnIntervalCondition(7), new TidalWaveEffect(WaveDirection.West, Rows(8, 3, 4), strength: 2)));
         s.ClearHistory();
         string start = s.Dump();
         ulong startHash = s.Hash;

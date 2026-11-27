@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using RogueChess.Engine.Content.Abilities;
 using RogueChess.Engine.Content.Tiles;
 using RogueChess.Engine.Core;
@@ -137,6 +138,84 @@ public sealed class CheckerboardWipeEffect : BoardEffect
             if ((board.FileOf(p.Square) + board.RankOf(p.Square)) % 2 != parity) continue;
             if (p.HasAbility(FrozenAbility.Instance)) continue;
             ctx.Propose(Proposal.AddAbility(p, FrozenAbility.Instance, Cause, FreezeDuration));
+        }
+    }
+}
+
+/// <summary>The edge a <see cref="TidalWaveEffect"/> comes from, which is also the way it drags pieces.</summary>
+public enum WaveDirection
+{
+    /// <summary>Toward the highest rank (Black's home side).</summary>
+    North,
+
+    /// <summary>Toward rank 1 (White's home side).</summary>
+    South,
+
+    /// <summary>Toward the last file (h on an 8-wide board).</summary>
+    East,
+
+    /// <summary>Toward the a-file.</summary>
+    West,
+}
+
+/// <summary>
+/// A tidal wave rolling in from one edge: as it recedes it drags every piece (both sides) standing on the affected
+/// squares one square toward that edge, <c>strength</c> times (one wave per step, see <see cref="BoardEffect.Steps"/>).
+/// A piece pulled past the edge is washed out and destroyed; nobody is credited. Walls hold pieces back (no move is
+/// proposed into a square that blocks passage or landing), and the resolver's sliding-block rules do the rest: a
+/// column shifts together, and a pull into a piece that stays put is blocked, leaving the piece where it is.
+/// Each step reads the board as it is then, so a piece pulled onto an affected square is pulled again next step.
+/// Affected squares off the board are ignored.
+/// </summary>
+public sealed class TidalWaveEffect : BoardEffect
+{
+    public const string Cause = "tidal-wave";
+
+    public TidalWaveEffect(WaveDirection direction, IReadOnlyList<(int X, int Y)> squares, int strength = 1)
+    {
+        if (strength < 1) throw new ArgumentOutOfRangeException(nameof(strength), "a tidal wave needs a strength of at least 1");
+        Direction = direction;
+        Squares = squares.Distinct().OrderBy(q => q.Y).ThenBy(q => q.X).ToArray();
+        Strength = strength;
+    }
+
+    public WaveDirection Direction { get; }
+    public IReadOnlyList<(int X, int Y)> Squares { get; }
+    public int Strength { get; }
+
+    public override int Steps => Strength;
+
+    public override string Key
+        => $"TidalWave({Direction}, {string.Join(" ", Squares.Select(q => $"{(char)('a' + q.X)}{q.Y + 1}"))}, strength {Strength})";
+
+    public override string Describe()
+        => $"Drags pieces on {Squares.Count} square(s) {Strength} square(s) toward the {Direction.ToString().ToLowerInvariant()} edge; pieces pulled off the board are destroyed.";
+
+    /// <summary>One square in the wave's direction.</summary>
+    public (int Dx, int Dy) Step => Direction switch
+    {
+        WaveDirection.North => (0, 1),
+        WaveDirection.South => (0, -1),
+        WaveDirection.East => (1, 0),
+        _ => (-1, 0),
+    };
+
+    public override void Apply(TriggerContext ctx, int timesFired)
+    {
+        var board = ctx.Board;
+        var (dx, dy) = Step;
+        foreach (var (x, y) in Squares)
+        {
+            if (!board.InBounds(x, y) || board.PieceAt(x, y) is not { } piece) continue;
+            int tx = x + dx, ty = y + dy;
+            if (!board.InBounds(tx, ty))
+            {
+                ctx.Propose(Proposal.Destroy(piece, Cause));
+                continue;
+            }
+            var tile = board.TileAt(board.Sq(tx, ty)).Def;
+            if (tile.BlocksPassage || tile.BlocksLanding) continue;
+            ctx.Propose(Proposal.Move(piece, board.Sq(tx, ty), Cause));
         }
     }
 }
