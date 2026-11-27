@@ -99,7 +99,8 @@ public static class BoardEffectJson
 
     /// <summary>
     /// <c>{ "side": "white|black", "roster": "soldier", "pieceValue": 6, "abilityValue": 3, "squares": ["a7", ...] }</c>.
-    /// <c>side</c> defaults to White and <c>abilityValue</c> to 0; the roster must be in the catalog.
+    /// <c>side</c> defaults to White and <c>abilityValue</c> to 0; both budgets are at most
+    /// <see cref="ReinforcementsEffect.MaxValue"/>; the roster must be in the catalog.
     /// </summary>
     private static ReinforcementsEffect ParseReinforcements(JsonElement? p, Catalog catalog)
     {
@@ -108,9 +109,15 @@ public static class BoardEffectJson
         if (p is not { } o || !o.TryGetProperty("pieceValue", out var pv) || pv.ValueKind != JsonValueKind.Number)
             throw new FormatException("Reinforcements needs a pieceValue");
         int pieceValue = pv.GetInt32();
-        if (pieceValue < 1) throw new FormatException("Reinforcements needs a pieceValue of at least 1");
+        if (pieceValue < 1 || pieceValue > ReinforcementsEffect.MaxValue)
+            throw new FormatException($"Reinforcements needs a pieceValue from 1 to {ReinforcementsEffect.MaxValue}");
         int abilityValue = Int(p, "abilityValue", 0);
-        if (abilityValue < 0) throw new FormatException("Reinforcements needs an abilityValue of 0 or more");
+        if (abilityValue < 0 || abilityValue > ReinforcementsEffect.MaxValue)
+            throw new FormatException($"Reinforcements needs an abilityValue from 0 to {ReinforcementsEffect.MaxValue}");
+        // Strict, unlike the prototype's lenient sides: a typo here would hand the enemy's reinforcements to the player.
+        var sideText = String(p, "side");
+        if (sideText != null && !sideText.Equals("white", StringComparison.OrdinalIgnoreCase) && !sideText.Equals("black", StringComparison.OrdinalIgnoreCase))
+            throw new FormatException($"Reinforcements: side must be white or black, not '{sideText}'");
         return new ReinforcementsEffect(SideParam(p, "side"), roster, pieceValue, abilityValue, ParseSquares(p, "Reinforcements"), catalog);
     }
 

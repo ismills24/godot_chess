@@ -183,7 +183,7 @@ Map format (same as the prototype):
 | `WindGust` | `targetPlayer` ("white"), `freezeDuration` (2): in each file, that side's highest piece moves down a rank; if blocked, it and the blocker freeze |
 | `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
 | `TidalWave` | `direction` (required: north/south/east/west), `squares` (required: `["a6", ...]`), `strength` (1, at most 32): every piece on those squares moves one square toward that edge, `strength` times (one wave per step); pieces pulled off the board are destroyed; walls and pieces that stay put block |
-| `Reinforcements` | `roster` (required: a roster id), `pieceValue` (required, at least 1), `abilityValue` (0), `side` ("white"), `squares` (required: `["a7", ...]`): buys a random set from the roster with those budgets (the encounter army generator, no king, no forced pawns) and spawns it on the free squares of the area (no piece, no wall or other passage/landing-blocking tile), most valuable first; what doesn't fit doesn't arrive |
+| `Reinforcements` | `roster` (required: a roster id), `pieceValue` (required, 1 to 100), `abilityValue` (0, at most 100), `side` ("white"; only white or black accepted), `squares` (required: `["a7", ...]`): buys a random set from the roster with those budgets (the encounter army generator, no king, no forced pawns) and spawns it on the free squares of the area (no piece, no wall or other passage/landing-blocking tile), most valuable first; what doesn't fit doesn't arrive |
 
 ## Recipe 7b: a roster
 

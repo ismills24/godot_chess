@@ -224,6 +224,14 @@ public class ReinforcementsTests
     }
 
     [Fact]
+    public void Reinforcements_budgets_are_capped()
+    {
+        Assert.Equal(ReinforcementsEffect.MaxValue, Effect(Soldier, ReinforcementsEffect.MaxValue, ReinforcementsEffect.MaxValue, Rows(6)).PieceValue);
+        Assert.Throws<ArgumentOutOfRangeException>(() => Effect(Soldier, ReinforcementsEffect.MaxValue + 1, 0, Rows(6)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Effect(Soldier, 3, ReinforcementsEffect.MaxValue + 1, Rows(6)));
+    }
+
+    [Fact]
     public void Reinforcements_describe_themselves()
     {
         var e = Effect(Soldier, 6, 3, Squares("b7", "a7"));
@@ -282,6 +290,9 @@ public class ReinforcementsTests
     [InlineData("""{ "roster": "soldier", "pieceValue": 3 }""")]
     [InlineData("""{ "roster": "soldier", "pieceValue": 3, "squares": [] }""")]
     [InlineData("""{ "roster": "soldier", "pieceValue": 3, "squares": ["9z"] }""")]
+    [InlineData("""{ "roster": "soldier", "pieceValue": 100000, "squares": ["a7"] }""")]
+    [InlineData("""{ "roster": "soldier", "pieceValue": 3, "abilityValue": 100000, "squares": ["a7"] }""")]
+    [InlineData("""{ "side": "blak", "roster": "soldier", "pieceValue": 3, "squares": ["a7"] }""")]
     public void Bad_reinforcements_entries_are_reported(string effectParams)
     {
         var e = Assert.Throws<MapLoadException>(() => MapLoader.Load(ReinforcementsMap(effectParams), ContentLibrary.CreateCatalog()));

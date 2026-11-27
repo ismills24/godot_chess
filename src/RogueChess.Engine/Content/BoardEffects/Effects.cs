@@ -238,14 +238,22 @@ public sealed class ReinforcementsEffect : BoardEffect
 {
     public const string Cause = "reinforcements";
 
+    /// <summary>
+    /// Highest piece and ability budget. The whole set is generated on every firing (AI search included) before it
+    /// is cut to the free squares, so a huge budget would stall the game; 100 already fills any sensible area.
+    /// </summary>
+    public const int MaxValue = 100;
+
     private readonly Catalog _catalog;
     private readonly ArmySpec _spec;
 
     public ReinforcementsEffect(Side side, RosterDef roster, int pieceValue, int abilityValue,
         IReadOnlyList<(int X, int Y)> squares, Catalog catalog)
     {
-        if (pieceValue < 1) throw new ArgumentOutOfRangeException(nameof(pieceValue), "reinforcements need a piece value of at least 1");
-        if (abilityValue < 0) throw new ArgumentOutOfRangeException(nameof(abilityValue), "reinforcements need an ability value of 0 or more");
+        if (pieceValue < 1 || pieceValue > MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(pieceValue), $"reinforcements need a piece value from 1 to {MaxValue}");
+        if (abilityValue < 0 || abilityValue > MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(abilityValue), $"reinforcements need an ability value from 0 to {MaxValue}");
         if (squares.Count == 0) throw new ArgumentException("reinforcements need at least one square", nameof(squares));
         Side = side;
         Roster = roster;
