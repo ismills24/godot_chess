@@ -7,6 +7,9 @@ namespace GodotChess.Sandbox.Visuals;
 /// <summary>Builds a resolved recipe. Owns no gameplay state and emits no gameplay events.</summary>
 public static class PieceVisualAssembler
 {
+    /// <summary>The pieces' finish (wood_hd_piece.gd's style), shared with inn/chess_set.gd.</summary>
+    public static string PieceStyle = "porcelain";
+
     private static readonly HashSet<string> WoodKinds = new() { "pawn", "knight", "bishop", "rook", "queen", "king" };
 
     public static Node3D Assemble(ResolvedPieceVisual visual)
@@ -32,12 +35,13 @@ public static class PieceVisualAssembler
         else if (recipe != null && string.IsNullOrEmpty(recipe.Scene)
             && WoodKinds.Contains(recipe.Base) && WoodKinds.Contains(recipe.Body) && WoodKinds.Contains(recipe.Head))
         {
-            model = GD.Load<PackedScene>("res://assets/pieces/wood/LightPawn.tscn").Instantiate<Node3D>();
+            // The high-resolution set (same shapes as assets/pieces/wood), in the default style.
+            model = (Node3D)GD.Load<GDScript>("res://assets/pieces/wood_hd/wood_hd_piece.gd").New();
             model.Set("base_kind", recipe.Base);
             model.Set("body_kind", recipe.Body);
             model.Set("head_kind", recipe.Head);
             model.Set("dark_wood", visual.Dark);
-            model.Set("depth_tested_splats", true);
+            model.Set("style", PieceStyle);
         }
 
         if (model != null && recipe != null && float.IsFinite(recipe.Scale) && recipe.Scale > 0

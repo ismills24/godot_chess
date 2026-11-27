@@ -10,6 +10,7 @@ const InnWorld := preload("res://inn/inn_world.gd")
 const Bartender := preload("res://inn/bartender.gd")
 const ChessSet := preload("res://inn/chess_set.gd")
 const InnMatch := preload("res://inn/InnMatch.cs")
+const SharpLayer := preload("res://common/sharp_layer.gd")
 const MENU_SCENE := "res://menu/MainMenu.tscn"
 const SETTINGS_FILE := "user://menu_settings.cfg"
 const FPS_CAP := 60
@@ -296,6 +297,11 @@ func _on_served() -> void:
 func _begin_play() -> void:
 	_board = _bartender.board()
 	_light_board()
+	# The pieces in play, drawn at full resolution over the pixel stage.
+	var sharp := SharpLayer.new()
+	sharp.setup(_stage, _camera, $Display)
+	add_child(sharp)
+	sharp.reveal(_board)
 	_match = InnMatch.new()
 	add_child(_match)
 	_match.connect("Moved", _on_moved)

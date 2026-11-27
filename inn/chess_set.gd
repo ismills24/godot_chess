@@ -1,5 +1,5 @@
 extends "res://common/scene_kit.gd"
-## A small wooden chess set built from primitives: a framed board and turned pieces.
+## A small wooden chess set: a framed board built from primitives and the wood-set pieces.
 ## Local space: origin under the board's centre, light (white) pieces' home rank toward +Z.
 ## `build(placement)` takes the piece-placement field of a FEN, so a set can show the start
 ## or any game in progress; `captured` lists taken pieces (FEN letters) to stand beside it.
@@ -13,11 +13,17 @@ const KINDS := "pnbrqk"  # pawn 0, knight 1, bishop 2, rook 3, queen 4, king 5
 ## The board's playing surface, above the set's origin.
 const SURFACE := 0.0245
 const MOVE_SECONDS := 0.32
+const WOOD_PIECE := preload("res://assets/pieces/wood_hd/wood_hd_piece.gd")
+const WOOD_KINDS := ["pawn", "knight", "bishop", "rook", "queen", "king"]
+## The wood pieces are modelled for 1.45-unit squares.
+const WOOD_SCALE := SQUARE / 1.45
+
+## The pieces' finish (wood_hd_piece.gd's `style`: wood, grain, plastic, cel, marble, metal,
+## porcelain). Set before building.
+static var piece_style := "porcelain"
 
 static var _squares: StandardMaterial3D
 static var _frame: StandardMaterial3D
-static var _light: StandardMaterial3D
-static var _dark: StandardMaterial3D
 static var _chosen: StandardMaterial3D
 static var _reach: StandardMaterial3D
 static var _threat: StandardMaterial3D
@@ -29,6 +35,8 @@ var _live := {}
 ## Taken pieces lined up off the board, per colour (0 light, 1 dark).
 var _taken := [0, 0]
 var _marks: Node3D
+## Visual layers for the pieces (see set_piece_layers).
+var _piece_layers := 1
 
 
 func build(placement := START, captured := "") -> void:
@@ -136,6 +144,16 @@ func mark(chosen: int, reach: Array, threat: Array, last: Array, check := -1) ->
 			_mesh(_marks, dot, _reach, _square_point(square) + Vector3(0, 0.0015, 0))
 
 
+## Puts every piece, and any made later (promotions), on visual `layers`; the scenes use this
+## to draw the pieces in play sharper than the room (common/sharp_layer.gd).
+func set_piece_layers(layers: int) -> void:
+	_piece_layers = layers
+	for child in get_children():
+		if child is Node3D and child.has_meta("symbol"):
+			for model in child.get_children():
+				model.set_render_layers(layers)
+
+
 func _square_point(square: int) -> Vector3:
 	return square_center(square % 8, square / 8)
 
@@ -180,9 +198,6 @@ func _make_materials() -> void:
 	_squares.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_squares.roughness = 0.55
 	_frame = _paint(Color("2c1c12"), 0.6)
-	_light = _paint(Color("c9a77a"), 0.5)
-	# Near-black with a sheen, so the dark pieces stand out against the dark squares.
-	_dark = _paint(Color("140c08"), 0.28)
 	# Candle-gold for your piece and its moves, ember red for captures and check, a dull
 	# amber wash for the last move played.
 	_chosen = _see_through(_glowing(Color("ffb648"), 0.9), 0.55)
@@ -199,42 +214,22 @@ static func _see_through(material: StandardMaterial3D, alpha: float) -> Standard
 
 
 ## One piece standing at `at` (the board surface under its foot), built under its own node
-## (returned) so it can be moved.
+## (returned) so it can be moved. The pieces are the high-resolution maple and walnut
+## set (assets/pieces/wood_hd), scaled from its 1.45-unit squares down to this board's.
 func _piece(parent: Node3D, at: Vector3, symbol: String) -> Node3D:
 	var holder := Node3D.new()
 	holder.position = at
 	holder.set_meta("symbol", symbol)
 	parent.add_child(holder)
-	var material := _light if symbol == symbol.to_upper() else _dark
+	var light := symbol == symbol.to_upper()
 	var kind := KINDS.find(symbol.to_lower())
-	var height: float = [0.026, 0.03, 0.04, 0.034, 0.05, 0.055][kind]
-	_cylinder(holder, Vector3(0, 0.004, 0), 0.019, 0.017, 0.008, material)
-	_cylinder(holder, Vector3(0, 0.008 + height * 0.5, 0), 0.013, 0.008, height, material)
-	var crown := Vector3(0, 0.008 + height, 0)
-	match kind:
-		0, 2:
-			var head := SphereMesh.new()
-			head.radius = 0.01 if kind == 0 else 0.009
-			head.height = 0.02 if kind == 0 else 0.026
-			head.radial_segments = 6
-			head.rings = 3
-			_mesh(holder, head, material, crown + Vector3(0, 0.006, 0))
-		1:
-			var facing := 0.0 if material == _light else PI
-			var head := _box_mesh(holder, material, crown + Vector3(0, 0.008, 0), Vector3(0.012, 0.03, 0.024))
-			head.rotation = Vector3(0.35, facing, 0)
-		3:
-			_cylinder(holder, crown + Vector3(0, 0.006, 0), 0.015, 0.014, 0.012, material)
-		4, 5:
-			_cylinder(holder, crown + Vector3(0, 0.004, 0), 0.016, 0.01, 0.008, material)
-			if kind == 4:
-				var orb := SphereMesh.new()
-				orb.radius = 0.007
-				orb.height = 0.014
-				orb.radial_segments = 6
-				orb.rings = 3
-				_mesh(holder, orb, material, crown + Vector3(0, 0.014, 0))
-			else:
-				_box_mesh(holder, material, crown + Vector3(0, 0.018, 0), Vector3(0.005, 0.02, 0.005))
-				_box_mesh(holder, material, crown + Vector3(0, 0.02, 0), Vector3(0.015, 0.005, 0.005))
+	var model := WOOD_PIECE.new() as Node3D
+	model.set("piece_kind", WOOD_KINDS[kind])
+	model.set("dark_wood", not light)
+	model.set("style", piece_style)
+	model.render_layers = _piece_layers
+	model.scale = Vector3.ONE * WOOD_SCALE
+	# The wood knight faces +X; turn it to look across the board at the other side.
+	model.rotation.y = deg_to_rad((90.0 if kind == 1 else 0.0) + (0.0 if light else 180.0))
+	holder.add_child(model)
 	return holder
