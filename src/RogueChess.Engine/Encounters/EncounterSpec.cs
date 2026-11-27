@@ -16,8 +16,10 @@ public sealed record ArmySpec
 
     /// <summary>
     /// Pieces the budget may buy (ids or aliases). Null = every buyable piece in the catalog. When set, the
-    /// minimum pawns are only forced if a pawn is in the list.
+    /// minimum pawns are only forced if a pawn is in the list. Left out of JSON when null, so run states and
+    /// traces saved before this field existed keep their hashes.
     /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<string>? Pieces { get; init; }
 
     /// <summary>Abilities the budget may buy (ids). Null = every ability in the catalog.</summary>
