@@ -1,5 +1,5 @@
 extends Node
-## Draws one render layer (the pieces in play) at full window resolution over a scene's pixel
+## Draws one render layer (the board and pieces in play) at full window resolution over a scene's pixel
 ## stage, so they keep their detail while the room keeps its low-res look. The sharp view
 ## shares the stage's world, lights and camera; the stage camera stops drawing the layer, but
 ## its lights still do, so the pieces go on casting shadows on the board. The overlay is
@@ -7,11 +7,14 @@ extends Node
 ##
 ## Use: var sharp := SharpLayer.new(); sharp.setup($Stage, $Stage/Camera, $Display); add_child(sharp)
 ## then sharp.reveal(board) once nothing stands between the camera and the board: the overlay
-## draws over everything in the stage, so it is for when the board is in clear view.
+## draws over everything in the stage, so it is for when the board is in clear view. Anything
+## that comes between the camera and the board later (an opponent reaching for a piece) is
+## handed to punch_through(), and the stage shows through the overlay wherever it lies in front.
 
 ## Visual layer 11.
 const LAYER := 1 << 10
 const GRADE := preload("res://common/sharp_layer.gdshader")
+const PUNCH := preload("res://common/punch_through.gdshader")
 
 var _stage_camera: Camera3D
 var _view: SubViewport
@@ -57,14 +60,32 @@ func setup(stage: SubViewport, stage_camera: Camera3D, display: CanvasItem) -> v
 	process_priority = 1000
 
 
-## Fades the chess set's pieces in sharp over their pixel versions, then takes them out of
-## the stage.
+## Fades the chess set's board and pieces in sharp over their pixel versions, then takes them
+## out of the stage.
 func reveal(chess_set: Node3D, seconds := 0.5) -> void:
-	chess_set.set_piece_layers(1 | LAYER)
+	chess_set.set_play_layers(1 | LAYER)
 	_overlay.modulate.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(_overlay, "modulate:a", 1.0, seconds)
-	tween.tween_callback(func() -> void: chess_set.set_piece_layers(LAYER))
+	tween.tween_callback(func() -> void: chess_set.set_play_layers(LAYER))
+
+
+## Lets every mesh under `node` (built before this call) cut through the sharp overlay where
+## it is nearer the camera than the board, so a hand over the board isn't drawn beneath it.
+## Meshes under `chess_set` (when the board is carried by the opponent) are left alone.
+func punch_through(node: Node3D, chess_set: Node = null) -> void:
+	var material := ShaderMaterial.new()
+	material.shader = PUNCH
+	for found in node.find_children("*", "MeshInstance3D", true, false):
+		var mesh := found as MeshInstance3D
+		if chess_set and (mesh == chess_set or chess_set.is_ancestor_of(mesh)):
+			continue
+		var hole := MeshInstance3D.new()
+		hole.mesh = mesh.mesh
+		hole.material_override = material
+		hole.layers = LAYER
+		hole.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mesh.add_child(hole)
 
 
 func _ready() -> void:

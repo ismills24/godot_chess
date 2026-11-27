@@ -21,9 +21,12 @@ const WOOD_SCALE := SQUARE / 1.45
 ## The pieces' finish (wood_hd_piece.gd's `style`: wood, grain, plastic, cel, marble, metal,
 ## porcelain). Set before building.
 static var piece_style := "porcelain"
+## The board's finish, one of assets/boards/styles (the same names as the pieces' styles);
+## empty matches piece_style. Set before building.
+static var board_style := ""
 
-static var _squares: StandardMaterial3D
-static var _frame: StandardMaterial3D
+## Board materials by style: [surface, frame].
+static var _boards := {}
 static var _chosen: StandardMaterial3D
 static var _reach: StandardMaterial3D
 static var _threat: StandardMaterial3D
@@ -35,16 +38,20 @@ var _live := {}
 ## Taken pieces lined up off the board, per colour (0 light, 1 dark).
 var _taken := [0, 0]
 var _marks: Node3D
-## Visual layers for the pieces (see set_piece_layers).
+## Visual layers for the pieces, board and marks (see set_play_layers).
 var _piece_layers := 1
+## The board's own meshes: the playing surface and the frame.
+var _board_meshes: Array[MeshInstance3D] = []
 
 
 func build(placement := START, captured := "") -> void:
 	_make_materials()
-	_box_mesh(self, _frame, Vector3(0, 0.012, 0), Vector3(SQUARE * 8 + 0.05, 0.024, SQUARE * 8 + 0.05))
+	var board: Array = _board_materials(board_style if board_style != "" else piece_style)
+	_board_meshes.append(_box_mesh(self, board[1], Vector3(0, 0.012, 0),
+		Vector3(SQUARE * 8 + 0.05, 0.024, SQUARE * 8 + 0.05)))
 	var surface := PlaneMesh.new()
 	surface.size = Vector2(SQUARE * 8, SQUARE * 8)
-	_mesh(self, surface, _squares, Vector3(0, SURFACE, 0))
+	_board_meshes.append(_mesh(self, surface, board[0], Vector3(0, SURFACE, 0)))
 	_marks = Node3D.new()
 	add_child(_marks)
 	var ranks := placement.split("/")
@@ -142,16 +149,27 @@ func mark(chosen: int, reach: Array, threat: Array, last: Array, check := -1) ->
 			dot.radial_segments = 8
 			dot.rings = 1
 			_mesh(_marks, dot, _reach, _square_point(square) + Vector3(0, 0.0015, 0))
+	_layer_marks()
 
 
-## Puts every piece, and any made later (promotions), on visual `layers`; the scenes use this
-## to draw the pieces in play sharper than the room (common/sharp_layer.gd).
-func set_piece_layers(layers: int) -> void:
+## Puts the board, every piece and any made later (promotions), and the marks on visual
+## `layers`; the scenes use this to draw the board in play sharper than the room
+## (common/sharp_layer.gd).
+func set_play_layers(layers: int) -> void:
 	_piece_layers = layers
 	for child in get_children():
 		if child is Node3D and child.has_meta("symbol"):
 			for model in child.get_children():
 				model.set_render_layers(layers)
+	for mesh in _board_meshes:
+		mesh.layers = layers
+	_layer_marks()
+
+
+func _layer_marks() -> void:
+	if _marks:
+		for mark_mesh in _marks.get_children():
+			(mark_mesh as VisualInstance3D).layers = _piece_layers
 
 
 func _square_point(square: int) -> Vector3:
@@ -187,17 +205,8 @@ func _slide(holder: Node3D, to: Vector3, hop: bool, animate: bool) -> void:
 
 
 func _make_materials() -> void:
-	if _squares:
+	if _chosen:
 		return
-	var checks := Image.create(8, 8, false, Image.FORMAT_RGB8)
-	for file in 8:
-		for rank in 8:
-			checks.set_pixel(file, rank, Color("b48c5e") if (file + rank) % 2 == 0 else Color("644029"))
-	_squares = StandardMaterial3D.new()
-	_squares.albedo_texture = ImageTexture.create_from_image(checks)
-	_squares.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	_squares.roughness = 0.55
-	_frame = _paint(Color("2c1c12"), 0.6)
 	# Candle-gold for your piece and its moves, ember red for captures and check, a dull
 	# amber wash for the last move played.
 	_chosen = _see_through(_glowing(Color("ffb648"), 0.9), 0.55)
@@ -205,6 +214,22 @@ func _make_materials() -> void:
 	_threat = _glowing(Color("ff5a2a"), 1.2)
 	_last = _see_through(_glowing(Color("d88a34"), 0.8), 0.6)
 	_check = _see_through(_glowing(Color("ff3a1a"), 1.0), 0.55)
+
+
+## The playing surface's and the frame's materials for board `style`
+## (assets/boards/styles/<style>.gdshader), made once each.
+static func _board_materials(style: String) -> Array:
+	if not _boards.has(style):
+		var shader: Shader = load("res://assets/boards/styles/%s.gdshader" % style)
+		var pair := []
+		for is_frame in [false, true]:
+			var material := ShaderMaterial.new()
+			material.shader = shader
+			material.set_shader_parameter("frame", is_frame)
+			material.set_shader_parameter("square_size", SQUARE)
+			pair.append(material)
+		_boards[style] = pair
+	return _boards[style]
 
 
 static func _see_through(material: StandardMaterial3D, alpha: float) -> StandardMaterial3D:

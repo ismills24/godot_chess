@@ -181,10 +181,12 @@ func _walk_in() -> void:
 
 func _begin_play() -> void:
 	_light_board()
-	# The pieces in play, drawn at full resolution over the pixel stage.
+	# The board and pieces in play, drawn at full resolution over the pixel stage; the
+	# opponent's arm still shows over them when it reaches across.
 	var sharp := SharpLayer.new()
 	sharp.setup(_stage, _camera, $Display)
 	add_child(sharp)
+	sharp.punch_through(_world.opponent, _board)
 	sharp.reveal(_board)
 	_match = InnMatch.new()
 	add_child(_match)
