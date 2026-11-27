@@ -1,7 +1,7 @@
 extends SceneTree
 ## Stills of the shared chess set (inn/chess_set.gd) with a game in progress, at full
 ## resolution under a warm table light: from White's chair, and low across the board.
-## Run (not headless): Godot --path . --script res://experiments/board/preview_board.gd -- <out_prefix>
+## Run (not headless): Godot --path . --script res://experiments/board/preview_board.gd -- <out_prefix> [style]
 
 const ChessSet = preload("res://inn/chess_set.gd")
 ## A middlegame with every piece type on the board, and a few taken.
@@ -51,6 +51,9 @@ func _capture() -> void:
 	fill.light_color = Color("a8b8ff")
 	fill.light_energy = 0.25
 	stage.add_child(fill)
+	var user_args := OS.get_cmdline_user_args()
+	if user_args.size() > 1:
+		ChessSet.piece_style = user_args[1]
 	var board := ChessSet.new()
 	stage.add_child(board)
 	board.build(PLACEMENT, CAPTURED)

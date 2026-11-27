@@ -18,6 +18,10 @@ const WOOD_KINDS := ["pawn", "knight", "bishop", "rook", "queen", "king"]
 ## The wood pieces are modelled for 1.45-unit squares.
 const WOOD_SCALE := SQUARE / 1.45
 
+## The pieces' finish (wood_hd_piece.gd's `style`: wood, grain, plastic, cel, marble, metal,
+## porcelain). Set before building.
+static var piece_style := "porcelain"
+
 static var _squares: StandardMaterial3D
 static var _frame: StandardMaterial3D
 static var _chosen: StandardMaterial3D
@@ -222,6 +226,7 @@ func _piece(parent: Node3D, at: Vector3, symbol: String) -> Node3D:
 	var model := WOOD_PIECE.new() as Node3D
 	model.set("piece_kind", WOOD_KINDS[kind])
 	model.set("dark_wood", not light)
+	model.set("style", piece_style)
 	model.render_layers = _piece_layers
 	model.scale = Vector3.ONE * WOOD_SCALE
 	# The wood knight faces +X; turn it to look across the board at the other side.

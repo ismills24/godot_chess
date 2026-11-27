@@ -8,6 +8,7 @@ const KINDS = ["pawn", "rook", "knight", "bishop", "queen", "king"]
 const SEATS = {"pawn": 0.91, "rook": 1.02, "knight": 0.48, "bishop": 1.16, "queen": 1.34, "king": 1.48}
 const FINISHES = {"maple": 0, "walnut": 1, "gilt": 2}
 const MESHES := "res://assets/pieces/wood_hd/meshes/"
+const STYLES := "res://assets/pieces/wood_hd/styles/"
 
 @export_enum("pawn", "rook", "knight", "bishop", "queen", "king") var piece_kind := "pawn"
 @export var dark_wood := false
@@ -17,6 +18,10 @@ const MESHES := "res://assets/pieces/wood_hd/meshes/"
 @export var base_kind := ""
 @export var body_kind := ""
 @export var head_kind := ""
+## The finish: "wood" (the wood set's painted maple/walnut) or one of styles/<name>.gdshader:
+## "grain" (boxwood/rosewood), "plastic", "cel" (outlined), "marble", "metal" (brass/pewter),
+## "porcelain" (white/cobalt).
+@export_enum("wood", "grain", "plastic", "cel", "marble", "metal", "porcelain") var style := "wood"
 ## Visual layers for the piece's meshes; set_render_layers() changes them later.
 @export_flags_3d_render var render_layers := 1
 
@@ -62,16 +67,23 @@ func _module(parent: Node3D, mesh_name: String, felt: bool) -> void:
 	var node := MeshInstance3D.new()
 	node.name = mesh_name.get_slice("_", 1).capitalize()
 	node.mesh = load(MESHES + mesh_name + ".res")
-	node.material_override = _material(finish_index(), felt)
+	node.material_override = _material(finish_index(), felt, style)
 	node.layers = render_layers
 	parent.add_child(node)
 
 
-static func _material(finish_id: int, felt: bool) -> ShaderMaterial:
-	var key := "%d/%s" % [finish_id, felt]
+static func _material(finish_id: int, felt: bool, look: String) -> ShaderMaterial:
+	var key := "%d/%s/%s" % [finish_id, felt, look]
 	if not _materials.has(key):
 		var material := ShaderMaterial.new()
-		material.shader = preload("res://assets/pieces/wood_hd/wood_hd.gdshader")
+		if look == "wood":
+			material.shader = preload("res://assets/pieces/wood_hd/wood_hd.gdshader")
+		else:
+			material.shader = load(STYLES + look + ".gdshader")
+		if look == "cel":
+			var outline := ShaderMaterial.new()
+			outline.shader = preload("res://assets/pieces/wood_hd/styles/outline.gdshader")
+			material.next_pass = outline
 		material.set_shader_parameter("finish", finish_id)
 		material.set_shader_parameter("felt_pad", felt)
 		_materials[key] = material

@@ -26,7 +26,8 @@ public sealed class PieceSelectionHighlight
             if (mesh.MaterialOverride is ShaderMaterial wood &&
                 (wood.Shader.ResourcePath == "res://assets/pieces/wood/wood_surface_depth.gdshader" ||
                  wood.Shader.ResourcePath == "res://assets/pieces/wood/wood_surface.gdshader" ||
-                 wood.Shader.ResourcePath == "res://assets/pieces/wood/wood_solid.gdshader"))
+                 wood.Shader.ResourcePath == "res://assets/pieces/wood/wood_solid.gdshader" ||
+                 wood.Shader.ResourcePath.StartsWith("res://assets/pieces/wood_hd/")))
             {
                 var tinted = (ShaderMaterial)wood.Duplicate();
                 tinted.SetShaderParameter("selection_amount", 0.2f);
