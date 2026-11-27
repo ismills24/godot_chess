@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using RogueChess.Engine.Core;
 
@@ -13,11 +14,12 @@ namespace RogueChess.Engine.Content.BoardEffects;
 /// </summary>
 public static class BoardEffectJson
 {
-    /// <summary>Register the three effect types (the catalog looks entries up by their effect type).</summary>
+    /// <summary>Register the effect types (the catalog looks entries up by their effect type).</summary>
     public static Catalog AddBoardEffects(this Catalog catalog) => catalog
         .AddBoardEffect("WallsPlacement", Create)
         .AddBoardEffect("WindGust", Create)
-        .AddBoardEffect("CheckerboardWipe", Create);
+        .AddBoardEffect("CheckerboardWipe", Create)
+        .AddBoardEffect("TidalWave", Create);
 
     public static (GlobalDef Def, int[] Vars) Create(JsonElement entry)
     {
@@ -63,9 +65,37 @@ public static class BoardEffectJson
                     ? SquareColor.White
                     : SquareColor.Black;
                 return new CheckerboardWipeEffect(color, Int(p, "freezeDuration", 2), Bool(p, "alternating", false));
+            case "TidalWave":
+                return ParseTidalWave(p);
             case var other:
                 throw new FormatException($"unknown board effect '{other}'");
         }
+    }
+
+    /// <summary>
+    /// <c>{ "direction": "north|south|east|west", "squares": ["a6", ...], "strength": 1 }</c>. Square names aren't
+    /// bounds-checked here (the board isn't known yet); squares off the board are ignored when the wave fires.
+    /// </summary>
+    private static TidalWaveEffect ParseTidalWave(JsonElement? p)
+    {
+        if (!Enum.TryParse<WaveDirection>(String(p, "direction"), ignoreCase: true, out var direction)
+            || !Enum.IsDefined(direction) || int.TryParse(String(p, "direction"), out _))
+            throw new FormatException("TidalWave needs a direction of north, south, east or west");
+
+        if (p is not { } o || !o.TryGetProperty("squares", out var list) || list.ValueKind != JsonValueKind.Array || list.GetArrayLength() == 0)
+            throw new FormatException("TidalWave needs a non-empty list of squares");
+        var squares = new List<(int X, int Y)>();
+        foreach (var item in list.EnumerateArray())
+        {
+            string name = item.ValueKind == JsonValueKind.String ? item.GetString()! : item.ToString();
+            if (name.Length < 2 || name[0] < 'a' || name[0] > 'z' || !int.TryParse(name.AsSpan(1), out int rank) || rank < 1)
+                throw new FormatException($"TidalWave: bad square name '{name}'");
+            squares.Add((name[0] - 'a', rank - 1));
+        }
+
+        int strength = Int(p, "strength", 1);
+        if (strength < 1) throw new FormatException("TidalWave needs a strength of at least 1");
+        return new TidalWaveEffect(direction, squares, strength);
     }
 
     private static string Type(JsonElement e)

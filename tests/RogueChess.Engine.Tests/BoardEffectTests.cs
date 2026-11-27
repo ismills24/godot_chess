@@ -502,6 +502,37 @@ public class BoardEffectTests
         Assert.Contains(e.Problems, p => p.Contains("unknown board-effect condition 'Moon'"));
     }
 
+    private static string TidalMap(string effectParams) => $$"""
+        { "width": 8, "height": 8, "pieces": [
+            { "type": "King", "color": "White", "x": 0, "y": 0 }, { "type": "King", "color": "Black", "x": 7, "y": 7 } ],
+          "boardEffects": [ { "condition": { "type": "TurnInterval", "params": { "interval": 2 } },
+                              "effect": { "type": "TidalWave", "params": {{effectParams}} } } ] }
+        """;
+
+    [Fact]
+    public void Tidal_wave_loads_from_a_map()
+    {
+        var s = MapLoader.Load(TidalMap("""{ "direction": "North", "squares": ["c6", "a6", "b6"] }"""), ContentLibrary.CreateCatalog());
+        var g = Assert.Single(s.Globals);
+        Assert.Equal("board-effect:TidalWave(North, a6 b6 c6, strength 1) when TurnInterval(every 2 from 2)", g.Def.Id);
+
+        var strong = MapLoader.Load(TidalMap("""{ "direction": "west", "squares": ["a1"], "strength": 3 }"""), ContentLibrary.CreateCatalog());
+        Assert.Equal(3, ((TidalWaveEffect)((BoardEffectDef)Assert.Single(strong.Globals).Def).Effect).Strength);
+    }
+
+    [Theory]
+    [InlineData("""{ "squares": ["a1"] }""")]
+    [InlineData("""{ "direction": "up", "squares": ["a1"] }""")]
+    [InlineData("""{ "direction": "north" }""")]
+    [InlineData("""{ "direction": "north", "squares": [] }""")]
+    [InlineData("""{ "direction": "north", "squares": ["9z"] }""")]
+    [InlineData("""{ "direction": "north", "squares": ["a1"], "strength": 0 }""")]
+    public void Bad_tidal_wave_entries_are_reported(string effectParams)
+    {
+        var e = Assert.Throws<MapLoadException>(() => MapLoader.Load(TidalMap(effectParams), ContentLibrary.CreateCatalog()));
+        Assert.Contains(e.Problems, p => p.Contains("TidalWave") && !p.Contains("unknown board effect"));
+    }
+
     [Fact]
     public void Random_games_with_board_effects_keep_hash_and_undo_exact()
     {

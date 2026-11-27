@@ -209,6 +209,8 @@ The sandbox shows it, and the Godot layer animates from it: one wave per beat, e
 
 **Wind gust.** The effect proposes one `Move` per column, all in one wave. Moves into stationary pieces are blocked and produce `Collided`. The board effect's own trigger reacts to `Collided` next wave by freezing both pieces. Collision handling lives in the engine, not in the effect.
 
+**Tidal wave.** Each step proposes, in one wave, a `Move` one square toward the wave's edge for every piece on an affected square, or a `Destroy` when that square is off the board. A whole column shifts together because each destination is vacated in the same wave; a pull into a piece that stays put is blocked. Walls are the effect's own check (it proposes no move into a square that blocks passage or landing), since the engine would let a piece onto a wall and break it. Strength N chains N waves: the def sets its steps-left variable to N-1 and runs the next step on that variable's `VarChanged`, so each step reads the board the previous one left.
+
 **Piercing.** A capture proposes `Destroy(T)` + `Move(P → T's square)`. In the redirect layer Piercing claims both and rewrites them to `Move(P → square beyond T)` plus `Destroy(whatever stands there)`, if anything. T is untouched.
 
 ---
@@ -226,7 +228,7 @@ The sandbox shows it, and the Godot layer animates from it: one wave per beat, e
 | Wall tile | Trigger | `Moved` onto this square → `ChangeTile(standard)` |
 | Tomb tile | Modifier | Prevent: an ally's `Move` onto the empty tomb (including a Bouncer knock or Piercing jump made in the redirect layer) → `Revive` the entombed piece + `ChangeTile(standard)`; the ally stays put |
 | OnFire, Frozen | Trigger | `TurnEnded` → `AddVar(turnsLeft, -1)`; `VarChanged` to 0 → remove or destroy |
-| WindGust, CheckerboardWipe, WallsPlacement | Trigger (global) | `TurnEnded` with condition variables in state |
+| WindGust, CheckerboardWipe, WallsPlacement, TidalWave | Trigger (global) | `TurnEnded` with condition variables in state; multi-step effects (TidalWave strength > 1) also react to their own steps-left `VarChanged` |
 | Pawn promotion | Built-in rule trigger | `Moved` to the far rank → `ChangeDef` |
 | RoyalPromotion relic | Trigger (global) | `Moved` to the far rank → `ChangeDef` |
 

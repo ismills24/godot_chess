@@ -149,7 +149,7 @@ Under the hood, an ability's `ModifyMoves` adds `Move(from, target, MoveFlags.Ca
 
 ## Recipe 7: a board effect or condition
 
-A board effect is a condition plus an effect (`Content/BoardEffects/`), wrapped in a `BoardEffectDef` global.
+A board effect is a condition plus an effect (`Content/BoardEffects/`), wrapped in a `BoardEffectDef` global. An effect that overrides `Steps` runs `Apply` that many times per firing, one wave each (Tidal Wave).
 At the end of every turn (both sides' turns count; turn = `Ply + 1`, as in the prototype) the def asks its
 `BoardCondition.IsMet(board, turn, timesFired)`. If the condition is met, it calls `BoardEffect.Apply(ctx, timesFired)`,
 which proposes changes like any trigger, and adds 1 to the global's "times fired" variable. Conditions and effects keep
@@ -181,6 +181,7 @@ Map format (same as the prototype):
 | `WallsPlacement` | `wallCount` (1): random empty, non-wall squares become walls |
 | `WindGust` | `targetPlayer` ("white"), `freezeDuration` (2): in each file, that side's highest piece moves down a rank; if blocked, it and the blocker freeze |
 | `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
+| `TidalWave` | `direction` (required: north/south/east/west), `squares` (required: `["a6", ...]`), `strength` (1): every piece on those squares moves one square toward that edge, `strength` times (one wave per step); pieces pulled off the board are destroyed; walls and pieces that stay put block |
 
 ## Recipe 8: a relic, a consumable, the clock
 
