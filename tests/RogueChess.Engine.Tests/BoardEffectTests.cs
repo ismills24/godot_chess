@@ -290,6 +290,48 @@ public class BoardEffectTests
         Assert.Equal(SquareColor.White, new CheckerboardWipeEffect(SquareColor.White).ColorFor(1));
     }
 
+    // ------------------------------------------------------------------ Multi-step effects
+
+    /// <summary>Each step turns the first non-wall square of rank 1 (from a1) into a wall.</summary>
+    private sealed class WallPerStepEffect(int steps) : BoardEffect
+    {
+        public override string Key => $"WallPerStep({steps})";
+        public override string Describe() => "test";
+        public override int Steps => steps;
+
+        public override void Apply(TriggerContext ctx, int timesFired)
+        {
+            for (int x = 0; x < ctx.Board.Width; x++)
+                if (ctx.Board.TileAt(ctx.Board.Sq(x, 0)).Def != WallTile.Instance)
+                {
+                    ctx.Propose(Proposal.ChangeTile(ctx.Board.Sq(x, 0), WallTile.Instance, "test"));
+                    return;
+                }
+        }
+    }
+
+    [Fact]
+    public void Multi_step_effect_applies_once_per_wave_within_one_firing()
+    {
+        var s = Rogue("7k/8/8/8/8/8/8/7K w - - 0 1");
+        var g = AddEffect(s, new TurnDelayCondition(1), new WallPerStepEffect(3));
+
+        Play(s, "h1g1");
+        Assert.Equal(3, Walls(s));
+        Assert.Equal(1, g.Var(BoardEffectDef.TimesFiredVar));
+        Assert.Equal(0, g.Var(BoardEffectDef.StepsLeftVar));
+
+        Play(s, "h8g8"); // TurnDelay fires once only
+        Assert.Equal(3, Walls(s));
+    }
+
+    [Fact]
+    public void Single_step_effects_keep_one_variable()
+    {
+        Assert.Equal(1, new BoardEffectDef(new TurnIntervalCondition(1), new WindGustEffect(Side.White)).VarCount);
+        Assert.Equal(2, new BoardEffectDef(new TurnIntervalCondition(1), new WallPerStepEffect(2)).VarCount);
+    }
+
     // ------------------------------------------------------------------ Maps
 
     private static string LegacyMap(string name)
