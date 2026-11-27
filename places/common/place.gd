@@ -60,6 +60,8 @@ var _match: Node
 var _board: Node3D
 var _hud: CanvasLayer
 var _status: Label
+var _undo_button: Button
+var _leave_button: Button
 var _chosen := -1
 var _reach: Array = []
 var _threat: Array = []
@@ -107,7 +109,13 @@ func _exit_tree() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
-		get_tree().change_scene_to_file(MENU_SCENE)
+		# In a run, Escape concedes (or returns to the map once the game is over).
+		if _match:
+			_match.Leave()
+		elif get_parent().has_method("LeaveEncounter"):
+			get_parent().LeaveEncounter()
+		else:
+			get_tree().change_scene_to_file(MENU_SCENE)
 		return
 	if not _match:
 		return
@@ -191,12 +199,29 @@ func _begin_play() -> void:
 	_match = InnMatch.new()
 	add_child(_match)
 	_match.connect("Moved", _on_moved)
-	_match.connect("Thinking", func() -> void: _say(_world.opponent_name + " considers the board..."))
+	_match.connect("Thinking", func() -> void:
+		_say(_world.opponent_name + " considers the board...")
+		_undo_button.disabled = true
+		_leave_button.disabled = true)
 	_match.connect("Finished", _on_finished)
+	_match.connect("Refreshed", _on_refreshed)
+	_match.connect("Failed", func(message: String) -> void:
+		_on_refreshed()
+		_say(message))
 	_match.Begin(AUTOPLAY_ARG in OS.get_cmdline_user_args())
 	_board.show_pieces(_match.Pieces(), false)
 	_build_hud()
 	_say("Your move.")
+
+
+func _on_refreshed() -> void:
+	_board.show_pieces(_match.Pieces(), false)
+	_chosen = -1
+	_refresh_marks()
+	_undo_button.disabled = not _match.CanUndo()
+	_leave_button.disabled = false
+	if _match.IsPlayerTurn():
+		_say("Check. Your move." if _match.CheckedKing() >= 0 else "Your move.")
 
 
 func _on_moved(from: int, to: int, by_opponent: bool) -> void:
@@ -215,10 +240,13 @@ func _on_moved(from: int, to: int, by_opponent: bool) -> void:
 
 func _on_finished(winner: String) -> void:
 	var line: String = {
-		"player": "Checkmate. " + _world.opponent_name + " tips their king to you.",
-		"bartender": "Checkmate. " + _world.opponent_name + " wins.",
+		"player": "You take their king. " + _world.opponent_name + " tips their hat to you.",
+		"bartender": _world.opponent_name + " takes your king and wins.",
 	}.get(winner, "A draw.")
-	_say(line + "   Esc to leave")
+	_say(line)
+	_leave_button.text = "Return to map"
+	_leave_button.disabled = false
+	_undo_button.disabled = true
 
 
 func _click(square: int) -> void:
@@ -274,6 +302,24 @@ func _light_board() -> void:
 func _build_hud() -> void:
 	_hud = CanvasLayer.new()
 	add_child(_hud)
+	var actions := HBoxContainer.new()
+	actions.position = Vector2(22, 42)
+	actions.add_theme_constant_override("separation", 12)
+	_hud.add_child(actions)
+	_undo_button = Button.new()
+	_undo_button.text = "Undo move"
+	_undo_button.disabled = not _match.CanUndo()
+	_undo_button.pressed.connect(func() -> void: _match.Undo())
+	actions.add_child(_undo_button)
+	_leave_button = Button.new()
+	_leave_button.text = "Concede and leave"
+	_leave_button.pressed.connect(func() -> void: _match.Leave())
+	actions.add_child(_leave_button)
+	if get_parent().has_method("SaveNow"):
+		var save := Button.new()
+		save.text = "Save run"
+		save.pressed.connect(func() -> void: get_parent().SaveNow())
+		actions.add_child(save)
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(["Georgia", "Liberation Serif", "Noto Serif", "DejaVu Serif"])
 	font.font_weight = 700

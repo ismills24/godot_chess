@@ -61,7 +61,7 @@ public partial class InnMatch : Node
                 StartX = 0, Encounters = new()
                 {
                     new() { Id = _encounterId, Kind = "bartender", X = 1, Y = 1,
-                        Parameters = RunJson.Data(new BattleParameters { Fen = Fen.StartPosition, StandardRules = true }) },
+                        Parameters = RunJson.Data(new BattleParameters { Fen = Fen.StartPosition, StandardRules = false }) },
                 },
             });
             _session.Execute(RunCommand.Create("world.move", new WorldMove(1, 1)));

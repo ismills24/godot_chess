@@ -26,8 +26,15 @@ public sealed class EncounterRegistry
         ? handler : throw new FormatException($"Unknown encounter kind '{kind}'.");
     public SortedDictionary<string, string> Manifest(RunDefinition definition) => new(
         definition.Encounters.Select(e => e.Kind).Distinct().ToDictionary(k => k, k => Get(k).Version), StringComparer.Ordinal);
-    public static EncounterRegistry CreateDefault() => new EncounterRegistry()
-        .Register("battle", new BattleHandler()).Register("bartender", new BattleHandler(requireInnBoard: true));
+    /// <summary>Walk-in place scenes that play on the inn's 8x8 wooden set, like the bartender.</summary>
+    public static readonly string[] PlaceKinds = { "apothecary", "beach", "mountain", "sewer", "town_gate" };
+    public static EncounterRegistry CreateDefault()
+    {
+        var registry = new EncounterRegistry()
+            .Register("battle", new BattleHandler()).Register("bartender", new BattleHandler(requireInnBoard: true));
+        foreach (string kind in PlaceKinds) registry.Register(kind, new BattleHandler(requireInnBoard: true));
+        return registry;
+    }
 }
 
 /// <summary>Only ever receives the transaction's working copy, not committed session state.</summary>

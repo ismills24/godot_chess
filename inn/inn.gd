@@ -362,8 +362,8 @@ func _drink() -> void:
 
 func _on_finished(winner: String) -> void:
 	var line: String = {
-		"player": "Checkmate. The bartender tips his king to you.",
-		"bartender": "Checkmate. The bartender wins.",
+		"player": "You take his king. The bartender tips his hat to you.",
+		"bartender": "He takes your king. The bartender wins.",
 	}.get(winner, "A draw.")
 	_say(line)
 	_leave_button.text = "Return to map"

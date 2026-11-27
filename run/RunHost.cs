@@ -36,6 +36,16 @@ public partial class RunHost : Control
     {
         ["bartender"] = new("res://inn/Inn.tscn"),
         ["battle"] = new(null, () => new BattleEncounterView()),
+        ["apothecary"] = new("res://places/apothecary/Apothecary.tscn"),
+        ["beach"] = new("res://places/beach/Beach.tscn"),
+        ["mountain"] = new("res://places/mountain/Mountain.tscn"),
+        ["sewer"] = new("res://places/sewer/Sewer.tscn"),
+        ["town_gate"] = new("res://places/town_gate/TownGate.tscn"),
+    };
+    private static readonly Dictionary<string, string> MapLabels = new(StringComparer.Ordinal)
+    {
+        ["bartender"] = "The inn", ["battle"] = "Battle", ["apothecary"] = "Apothecary",
+        ["beach"] = "Beach", ["mountain"] = "Mountain", ["sewer"] = "Sewer", ["town_gate"] = "Town gate",
     };
     // Keep the PackedScene alive across visits; Godot's resource cache uses weak references.
     // Only resources load on a worker. Instantiation and scene-tree work stay on the main thread.
@@ -205,7 +215,7 @@ public partial class RunHost : Control
             }
             var loadedAt = Stopwatch.GetTimestamp();
             var view = path != null ? _loadedScenes[path].Instantiate() : presentation.Create!();
-            if (encounter.Definition.Kind == "bartender") view.Set("skip_intro", SkipEncounterIntro);
+            if (path != null) view.Set("skip_intro", SkipEncounterIntro);
             SetView(view);
             _decisionStart = Stopwatch.GetTimestamp();
             GD.Print($"[Run] enter {encounter.Definition.Kind}: {Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1} ms total, " +
@@ -247,7 +257,7 @@ public partial class RunHost : Control
                 var encounter = state.Encounters.SingleOrDefault(e => e.Definition.X == x && e.Definition.Y == y);
                 bool player = state.X == x && state.Y == y;
                 bool completed = encounter?.Status == EncounterStatus.Completed;
-                string name = encounter == null ? "" : completed ? "Cleared" : encounter.Definition.Kind == "bartender" ? "The inn" : "Battle";
+                string name = encounter == null ? "" : completed ? "Cleared" : MapLabels.GetValueOrDefault(encounter.Definition.Kind, "Battle");
                 var square = Button(grid, (player ? "YOU" : name) + $"\n{(char)('a' + x)}{y + 1}", () => MoveWorld(targetX, targetY));
                 square.Name = $"Square_{x}_{y}";
                 square.CustomMinimumSize = new Vector2(98, 98);

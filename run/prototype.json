@@ -14,7 +14,7 @@
       "y": 1,
       "parameters": {
         "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-        "standardRules": true,
+        "standardRules": false,
         "ai": {
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
@@ -33,6 +33,86 @@
         "player": { "pieceValue": 10, "minimumPawns": 2, "startingAbilities": ["exploding", "phantom", "predator"] },
         "enemy": { "pieceValue": 8, "minimumPawns": 2 },
         "ai": { "id": "challenger", "name": "Challenger", "maxDepth": 2, "nodeBudget": 30000, "timeBudgetMs": 0 }
+      }
+    },
+    {
+      "id": "apothecary",
+      "name": "The Apothecary",
+      "kind": "apothecary",
+      "x": 0,
+      "y": 2,
+      "parameters": {
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "standardRules": false,
+        "ai": {
+          "id": "bartender", "name": "Bartender",
+          "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
+          "quiescenceDepth": 4, "choiceMargin": 60, "rootNoise": 30, "blunderChance": 0.05
+        }
+      }
+    },
+    {
+      "id": "beach",
+      "name": "The Beach",
+      "kind": "beach",
+      "x": 1,
+      "y": 4,
+      "parameters": {
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "standardRules": false,
+        "ai": {
+          "id": "bartender", "name": "Bartender",
+          "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
+          "quiescenceDepth": 4, "choiceMargin": 60, "rootNoise": 30, "blunderChance": 0.05
+        }
+      }
+    },
+    {
+      "id": "mountain",
+      "name": "The Mountain Pass",
+      "kind": "mountain",
+      "x": 3,
+      "y": 4,
+      "parameters": {
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "standardRules": false,
+        "ai": {
+          "id": "bartender", "name": "Bartender",
+          "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
+          "quiescenceDepth": 4, "choiceMargin": 60, "rootNoise": 30, "blunderChance": 0.05
+        }
+      }
+    },
+    {
+      "id": "sewer",
+      "name": "The Sewer",
+      "kind": "sewer",
+      "x": 0,
+      "y": 4,
+      "parameters": {
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "standardRules": false,
+        "ai": {
+          "id": "bartender", "name": "Bartender",
+          "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
+          "quiescenceDepth": 4, "choiceMargin": 60, "rootNoise": 30, "blunderChance": 0.05
+        }
+      }
+    },
+    {
+      "id": "town-gate",
+      "name": "The Town Gate",
+      "kind": "town_gate",
+      "x": 4,
+      "y": 1,
+      "parameters": {
+        "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "standardRules": false,
+        "ai": {
+          "id": "bartender", "name": "Bartender",
+          "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
+          "quiescenceDepth": 4, "choiceMargin": 60, "rootNoise": 30, "blunderChance": 0.05
+        }
       }
     }
   ]
