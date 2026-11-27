@@ -4,6 +4,7 @@ using System.Linq;
 using RogueChess.Engine.Content.Abilities;
 using RogueChess.Engine.Content.Tiles;
 using RogueChess.Engine.Core;
+using RogueChess.Engine.Encounters;
 using RogueChess.Engine.Resolution;
 
 namespace RogueChess.Engine.Content.BoardEffects;
@@ -225,4 +226,82 @@ public sealed class TidalWaveEffect : BoardEffect
             ctx.Propose(Proposal.Move(piece, board.Sq(tx, ty), Cause));
         }
     }
+}
+
+/// <summary>
+/// Spawns a random set of pieces for <see cref="Side"/> on the free squares of an area. The set is bought with
+/// <see cref="EncounterGenerator.GenerateArmy"/> (no king, no forced pawns) from the side's roster only, so it
+/// holds nothing but the roster's pieces and abilities. Most valuable pieces land first; what doesn't fit doesn't
+/// arrive. The seed comes from the game's own generator, so it is reproducible and undone.
+/// </summary>
+public sealed class ReinforcementsEffect : BoardEffect
+{
+    public const string Cause = "reinforcements";
+
+    private readonly Catalog _catalog;
+    private readonly ArmySpec _spec;
+
+    public ReinforcementsEffect(Side side, RosterDef roster, int pieceValue, int abilityValue,
+        IReadOnlyList<(int X, int Y)> squares, Catalog catalog)
+    {
+        if (pieceValue < 1) throw new ArgumentOutOfRangeException(nameof(pieceValue), "reinforcements need a piece value of at least 1");
+        if (abilityValue < 0) throw new ArgumentOutOfRangeException(nameof(abilityValue), "reinforcements need an ability value of 0 or more");
+        if (squares.Count == 0) throw new ArgumentException("reinforcements need at least one square", nameof(squares));
+        Side = side;
+        Roster = roster;
+        PieceValue = pieceValue;
+        AbilityValue = abilityValue;
+        Squares = squares.Distinct().OrderBy(q => q.Y).ThenBy(q => q.X).ToArray();
+        _catalog = catalog;
+        _spec = new ArmySpec
+        {
+            PieceValue = pieceValue,
+            AbilityValue = abilityValue,
+            HasKing = false,
+            MinimumPawns = 0,
+            Pieces = roster.Pieces.Select(p => p.Id).ToArray(),
+            Abilities = roster.Abilities.Select(a => a.Id).ToArray(),
+        };
+    }
+
+    public Side Side { get; }
+    public RosterDef Roster { get; }
+    public int PieceValue { get; }
+    public int AbilityValue { get; }
+    public IReadOnlyList<(int X, int Y)> Squares { get; }
+
+    public override string Key
+        => $"Reinforcements({Side}, {Roster.Id}, pieces {PieceValue}, abilities {AbilityValue}, {string.Join(" ", Squares.Select(q => $"{(char)('a' + q.X)}{q.Y + 1}"))})";
+
+    public override string Describe()
+        => $"Sends {Side} reinforcements from the {Roster.Name} roster (piece value {PieceValue}, ability value {AbilityValue}) onto {Squares.Count} square(s).";
+
+    public override void Apply(TriggerContext ctx, int timesFired)
+    {
+        // The order of the ctx.Random calls is part of the game's determinism: seed first, then the square shuffle.
+        ulong seed = ((ulong)(uint)ctx.Random(int.MaxValue) << 32) | (uint)ctx.Random(int.MaxValue);
+        var army = EncounterGenerator.GenerateArmy(_spec, _catalog, seed);
+
+        var board = ctx.Board;
+        var free = new List<int>();
+        foreach (var (x, y) in Squares)
+        {
+            if (!board.InBounds(x, y)) continue;
+            int sq = board.Sq(x, y);
+            var tile = board.TileAt(sq).Def;
+            if (board.PieceAt(sq) == null && !tile.BlocksPassage && !tile.BlocksLanding) free.Add(sq);
+        }
+        for (int i = 0; i < free.Count - 1; i++)
+        {
+            int j = i + ctx.Random(free.Count - i);
+            (free[i], free[j]) = (free[j], free[i]);
+        }
+
+        foreach (var (piece, square) in Arrange(army, free))
+            ctx.Propose(Proposal.Spawn(piece.Def, Side, square, Cause, piece.Abilities));
+    }
+
+    /// <summary>Most valuable first (ties keep the generated order), one per square; the rest is dropped.</summary>
+    internal static List<(ArmyPiece Piece, int Square)> Arrange(IReadOnlyList<ArmyPiece> army, IReadOnlyList<int> freeSquares)
+        => army.OrderByDescending(p => p.Value).Zip(freeSquares, (p, sq) => (p, sq)).ToList();
 }
