@@ -15,7 +15,8 @@ void fragment() {
     // The sleeve sits in the collar's shadow; read it as a slightly dirtier joint.
     piece_finish(local_position, finish, 0.0, 0.25, false, albedo, roughness, metallic, specular);
     ALBEDO = mix(albedo, vec3(0.4, 0.85, 1.0), selection_amount);
-    EMISSION = vec3(0.25, 0.6, 0.8) * selection_amount * 0.6;
+    EMISSION = vec3(0.25, 0.6, 0.8) * selection_amount * 0.6 + piece_fill(ALBEDO);
+    ALBEDO *= piece_fill_keep();
     ROUGHNESS = roughness;
     METALLIC = metallic;
     SPECULAR = specular;

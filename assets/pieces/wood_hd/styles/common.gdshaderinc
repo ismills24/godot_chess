@@ -26,4 +26,6 @@ bool on_felt() {
 void piece_select(inout vec3 albedo, inout vec3 emission) {
     albedo = mix(albedo, vec3(0.4, 0.85, 1.0), selection_amount);
     emission += vec3(0.25, 0.6, 0.8) * selection_amount * 0.6;
+    emission += piece_fill(albedo);
+    albedo *= piece_fill_keep();
 }

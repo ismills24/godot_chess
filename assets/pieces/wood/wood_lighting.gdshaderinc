@@ -56,3 +56,16 @@ void piece_finish(vec3 p, int finish, float edge, float cavity, bool felt,
     metallic = 0.0;
     specular = 0.18;
 }
+
+// Shadow fill: a share of the piece's own colour added as emission, the same everywhere on the
+// piece, while the lit colour is dimmed to match, so the shadowed side lifts and the lit side
+// stays about where it was: lit and shadowed zones end up closer in brightness.
+uniform float shadow_fill : hint_range(0.0, 1.0) = 0.35;
+
+vec3 piece_fill(vec3 albedo) {
+    return albedo * shadow_fill;
+}
+
+float piece_fill_keep() {
+    return 1.0 - shadow_fill * 0.6;
+}

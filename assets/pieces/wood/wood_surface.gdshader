@@ -37,7 +37,8 @@ void fragment() {
     float specular;
     piece_finish(local_position, finish, wear.x, wear.y, felt_pad && local_position.y < 0.003, albedo, roughness, metallic, specular);
     ALBEDO = mix(albedo, vec3(0.4, 0.85, 1.0), selection_amount);
-    EMISSION = vec3(0.25, 0.6, 0.8) * selection_amount * 0.6;
+    EMISSION = vec3(0.25, 0.6, 0.8) * selection_amount * 0.6 + piece_fill(ALBEDO);
+    ALBEDO *= piece_fill_keep();
     ROUGHNESS = roughness;
     METALLIC = metallic;
     SPECULAR = specular;
