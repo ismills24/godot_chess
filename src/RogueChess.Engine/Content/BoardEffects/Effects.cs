@@ -171,9 +171,16 @@ public sealed class TidalWaveEffect : BoardEffect
 {
     public const string Cause = "tidal-wave";
 
+    /// <summary>
+    /// Highest strength: each step is a wave, and a chain near <see cref="Resolver.MaxWaves"/> would trip the
+    /// watchdog and roll back the whole turn end (thaws, timers, other effects) without a word.
+    /// </summary>
+    public const int MaxStrength = 32;
+
     public TidalWaveEffect(WaveDirection direction, IReadOnlyList<(int X, int Y)> squares, int strength = 1)
     {
-        if (strength < 1) throw new ArgumentOutOfRangeException(nameof(strength), "a tidal wave needs a strength of at least 1");
+        if (strength < 1 || strength > MaxStrength)
+            throw new ArgumentOutOfRangeException(nameof(strength), $"a tidal wave needs a strength from 1 to {MaxStrength}");
         Direction = direction;
         Squares = squares.Distinct().OrderBy(q => q.Y).ThenBy(q => q.X).ToArray();
         Strength = strength;

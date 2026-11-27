@@ -94,7 +94,8 @@ public static class BoardEffectJson
         }
 
         int strength = Int(p, "strength", 1);
-        if (strength < 1) throw new FormatException("TidalWave needs a strength of at least 1");
+        if (strength < 1 || strength > TidalWaveEffect.MaxStrength)
+            throw new FormatException($"TidalWave needs a strength from 1 to {TidalWaveEffect.MaxStrength}");
         return new TidalWaveEffect(direction, squares, strength);
     }
 

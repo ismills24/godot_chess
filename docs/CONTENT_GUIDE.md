@@ -181,7 +181,7 @@ Map format (same as the prototype):
 | `WallsPlacement` | `wallCount` (1): random empty, non-wall squares become walls |
 | `WindGust` | `targetPlayer` ("white"), `freezeDuration` (2): in each file, that side's highest piece moves down a rank; if blocked, it and the blocker freeze |
 | `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
-| `TidalWave` | `direction` (required: north/south/east/west), `squares` (required: `["a6", ...]`), `strength` (1): every piece on those squares moves one square toward that edge, `strength` times (one wave per step); pieces pulled off the board are destroyed; walls and pieces that stay put block |
+| `TidalWave` | `direction` (required: north/south/east/west), `squares` (required: `["a6", ...]`), `strength` (1, at most 32): every piece on those squares moves one square toward that edge, `strength` times (one wave per step); pieces pulled off the board are destroyed; walls and pieces that stay put block |
 
 ## Recipe 8: a relic, a consumable, the clock
 

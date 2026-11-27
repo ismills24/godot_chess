@@ -471,6 +471,13 @@ public class BoardEffectTests
     public void Tidal_wave_rejects_a_strength_below_one()
         => Assert.Throws<ArgumentOutOfRangeException>(() => Wave(WaveDirection.North, 0, "a1"));
 
+    [Fact] // a long chain would hit the resolver's wave limit and silently roll back the whole turn end
+    public void Tidal_wave_strength_is_capped()
+    {
+        Assert.Equal(32, Wave(WaveDirection.North, TidalWaveEffect.MaxStrength, "a1").Strength);
+        Assert.Throws<ArgumentOutOfRangeException>(() => Wave(WaveDirection.North, TidalWaveEffect.MaxStrength + 1, "a1"));
+    }
+
     // ------------------------------------------------------------------ Maps
 
     private static string LegacyMap(string name)
@@ -527,6 +534,7 @@ public class BoardEffectTests
     [InlineData("""{ "direction": "north", "squares": [] }""")]
     [InlineData("""{ "direction": "north", "squares": ["9z"] }""")]
     [InlineData("""{ "direction": "north", "squares": ["a1"], "strength": 0 }""")]
+    [InlineData("""{ "direction": "north", "squares": ["a1"], "strength": 100 }""")]
     public void Bad_tidal_wave_entries_are_reported(string effectParams)
     {
         var e = Assert.Throws<MapLoadException>(() => MapLoader.Load(TidalMap(effectParams), ContentLibrary.CreateCatalog()));
