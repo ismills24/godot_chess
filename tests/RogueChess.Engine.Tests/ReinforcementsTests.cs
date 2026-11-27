@@ -230,4 +230,61 @@ public class ReinforcementsTests
         Assert.Equal("Reinforcements(Black, soldier, pieces 6, abilities 3, a7 b7)", e.Key);
         Assert.Equal("Sends Black reinforcements from the Soldier roster (piece value 6, ability value 3) onto 2 square(s).", e.Describe());
     }
+
+    // ------------------------------------------------------------------ Maps
+
+    private static string ReinforcementsMap(string effectParams) => $$"""
+        { "width": 8, "height": 8, "pieces": [
+            { "type": "King", "color": "White", "x": 0, "y": 0 }, { "type": "King", "color": "Black", "x": 7, "y": 7 } ],
+          "boardEffects": [ { "condition": { "type": "TurnInterval", "params": { "interval": 2 } },
+                              "effect": { "type": "Reinforcements", "params": {{effectParams}} } } ] }
+        """;
+
+    private static ReinforcementsEffect Loaded(string effectParams)
+    {
+        var s = MapLoader.Load(ReinforcementsMap(effectParams), ContentLibrary.CreateCatalog());
+        return (ReinforcementsEffect)((BoardEffectDef)Assert.Single(s.Globals).Def).Effect;
+    }
+
+    [Fact]
+    public void Reinforcements_load_from_a_map()
+    {
+        var s = MapLoader.Load(ReinforcementsMap("""{ "side": "black", "roster": "Soldier", "pieceValue": 6, "abilityValue": 3, "squares": ["b7", "a7"] }"""),
+            ContentLibrary.CreateCatalog());
+        Assert.Equal("board-effect:Reinforcements(Black, soldier, pieces 6, abilities 3, a7 b7) when TurnInterval(every 2 from 2)",
+            Assert.Single(s.Globals).Def.Id);
+    }
+
+    [Fact]
+    public void Reinforcements_default_to_white_and_no_abilities()
+    {
+        var e = Loaded("""{ "roster": "soldier", "pieceValue": 2, "squares": ["a3"] }""");
+        Assert.Equal(Side.White, e.Side);
+        Assert.Equal(0, e.AbilityValue);
+    }
+
+    [Fact]
+    public void Reinforcements_loaded_from_a_map_spawn()
+    {
+        var s = MapLoader.Load(ReinforcementsMap("""{ "side": "black", "roster": "soldier", "pieceValue": 4, "squares": ["a6", "b6", "c6", "d6"] }"""),
+            ContentLibrary.CreateCatalog());
+        Play(s, "a1b1");
+        Play(s, "h8g8");
+        Assert.NotEmpty(Newcomers(s, Side.Black));
+    }
+
+    [Theory]
+    [InlineData("""{ "pieceValue": 3, "squares": ["a7"] }""")]
+    [InlineData("""{ "roster": "wizard", "pieceValue": 3, "squares": ["a7"] }""")]
+    [InlineData("""{ "roster": "soldier", "squares": ["a7"] }""")]
+    [InlineData("""{ "roster": "soldier", "pieceValue": 0, "squares": ["a7"] }""")]
+    [InlineData("""{ "roster": "soldier", "pieceValue": 3, "abilityValue": -1, "squares": ["a7"] }""")]
+    [InlineData("""{ "roster": "soldier", "pieceValue": 3 }""")]
+    [InlineData("""{ "roster": "soldier", "pieceValue": 3, "squares": [] }""")]
+    [InlineData("""{ "roster": "soldier", "pieceValue": 3, "squares": ["9z"] }""")]
+    public void Bad_reinforcements_entries_are_reported(string effectParams)
+    {
+        var e = Assert.Throws<MapLoadException>(() => MapLoader.Load(ReinforcementsMap(effectParams), ContentLibrary.CreateCatalog()));
+        Assert.Contains(e.Problems, p => p.Contains("Reinforcements") && !p.Contains("unknown board effect"));
+    }
 }

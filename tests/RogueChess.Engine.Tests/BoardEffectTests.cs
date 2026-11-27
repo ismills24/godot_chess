@@ -554,6 +554,9 @@ public class BoardEffectTests
         s.AddGlobal(new BoardEffectDef(new BoardValueCondition(Side.Black, 30, 2), new WallsPlacementEffect(1)));
         s.AddGlobal(new BoardEffectDef(new TurnDelayCondition(9), new WindGustEffect(Side.Black, 1)));
         s.AddGlobal(new BoardEffectDef(new TurnIntervalCondition(7), new TidalWaveEffect(WaveDirection.West, Rows(8, 3, 4), strength: 2)));
+        var catalog = ContentLibrary.CreateCatalog();
+        s.AddGlobal(new BoardEffectDef(new TurnIntervalCondition(9),
+            new ReinforcementsEffect(Side.Black, catalog.FindRoster("soldier")!, 3, 2, Rows(8, 5, 6), catalog)));
         s.ClearHistory();
         string start = s.Dump();
         ulong startHash = s.Hash;

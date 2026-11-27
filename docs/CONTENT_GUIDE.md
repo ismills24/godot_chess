@@ -11,6 +11,7 @@ How to add pieces, abilities and tiles. Read [RESOLUTION_RULES.md](RESOLUTION_RU
 | Tiles | `src/RogueChess.Engine/Content/Tiles/` |
 | Registration (map ids, sandbox palette) | `src/RogueChess.Engine/Content/ContentLibrary.cs` |
 | Relics, consumables | `src/RogueChess.Engine/Content/Relics/`, `Content/Consumables/` |
+| Rosters (what a character can have) | `rosters/*.json` (handmade; see Recipe 7b) |
 | Tests | `tests/RogueChess.Engine.Tests/ContentTests.cs` (`RunContentTests.cs` for relics, consumables, clock) |
 | Sandbox scenarios | `tools/make_scenarios.py` → `maps/sandbox/*.json` |
 
@@ -182,6 +183,22 @@ Map format (same as the prototype):
 | `WindGust` | `targetPlayer` ("white"), `freezeDuration` (2): in each file, that side's highest piece moves down a rank; if blocked, it and the blocker freeze |
 | `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
 | `TidalWave` | `direction` (required: north/south/east/west), `squares` (required: `["a6", ...]`), `strength` (1, at most 32): every piece on those squares moves one square toward that edge, `strength` times (one wave per step); pieces pulled off the board are destroyed; walls and pieces that stay put block |
+| `Reinforcements` | `roster` (required: a roster id), `pieceValue` (required, at least 1), `abilityValue` (0), `side` ("white"), `squares` (required: `["a7", ...]`): buys a random set from the roster with those budgets (the encounter army generator, no king, no forced pawns) and spawns it on the free squares of the area (no piece, no wall or other passage/landing-blocking tile), most valuable first; what doesn't fit doesn't arrive |
+
+## Recipe 7b: a roster
+
+A roster lists the pieces and abilities one character can ever have. Effects such as Reinforcements only draw
+from it. Write one JSON file per character in `rosters/`:
+
+```json
+{ "id": "soldier", "name": "Soldier", "pieces": ["Pawn", "Knight", "Bishop"], "abilities": ["Marksman", "Piercing"] }
+```
+
+- `id` and a non-empty `pieces` list are required; `name` defaults to the id; `abilities` may be left out.
+- Ids are catalog ids or map names, any case. Unknown ids, unknown fields or bad JSON fail loudly.
+- The files are embedded into the engine at build time and registered by `ContentLibrary.CreateCatalog()`, so the
+  Godot side needs no file access. Look one up with `catalog.FindRoster("soldier")`.
+- Royal pieces in a roster are never bought by the budget.
 
 ## Recipe 8: a relic, a consumable, the clock
 

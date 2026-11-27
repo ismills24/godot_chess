@@ -211,6 +211,14 @@ The sandbox shows it, and the Godot layer animates from it: one wave per beat, e
 
 **Tidal wave.** Each step proposes, in one wave, a `Move` one square toward the wave's edge for every piece on an affected square, or a `Destroy` when that square is off the board. A whole column shifts together because each destination is vacated in the same wave; a pull into a piece that stays put is blocked. Walls are the effect's own check (it proposes no move into a square that blocks passage or landing), since the engine would let a piece onto a wall and break it. Strength N chains N waves: the def sets its steps-left variable to N-1 and runs the next step on that variable's `VarChanged`, so each step reads the board the previous one left.
 
+**Reinforcements.** Soldier roster (Pawn, Knight, Bishop; Marksman, Piercing), Black, `pieceValue` 6,
+`abilityValue` 3, area a7–h7 with a White rook on c7. When the condition is met, the effect draws a seed from
+`ctx.Random`, buys a set with the encounter army generator (say Knight [Piercing], Pawn, Pawn, Pawn), shuffles the
+seven free squares with `ctx.Random`, and proposes one `Spawn` per piece in one wave, most valuable first: the
+knight takes the first shuffled square. c7 is never used. With only two free squares, two of the pawns wouldn't
+arrive. Spawns go through the normal spawn rules, so a spawn that conflicts with another proposal for the same square
+is settled like any other.
+
 **Piercing.** A capture proposes `Destroy(T)` + `Move(P → T's square)`. In the redirect layer Piercing claims both and rewrites them to `Move(P → square beyond T)` plus `Destroy(whatever stands there)`, if anything. T is untouched.
 
 ---
@@ -228,7 +236,7 @@ The sandbox shows it, and the Godot layer animates from it: one wave per beat, e
 | Wall tile | Trigger | `Moved` onto this square → `ChangeTile(standard)` |
 | Tomb tile | Modifier | Prevent: an ally's `Move` onto the empty tomb (including a Bouncer knock or Piercing jump made in the redirect layer) → `Revive` the entombed piece + `ChangeTile(standard)`; the ally stays put |
 | OnFire, Frozen | Trigger | `TurnEnded` → `AddVar(turnsLeft, -1)`; `VarChanged` to 0 → remove or destroy |
-| WindGust, CheckerboardWipe, WallsPlacement, TidalWave | Trigger (global) | `TurnEnded` with condition variables in state; multi-step effects (TidalWave strength > 1) also react to their own steps-left `VarChanged` |
+| WindGust, CheckerboardWipe, WallsPlacement, TidalWave, Reinforcements | Trigger (global) | `TurnEnded` with condition variables in state; multi-step effects (TidalWave strength > 1) also react to their own steps-left `VarChanged` |
 | Pawn promotion | Built-in rule trigger | `Moved` to the far rank → `ChangeDef` |
 | RoyalPromotion relic | Trigger (global) | `Moved` to the far rank → `ChangeDef` |
 

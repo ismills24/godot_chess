@@ -19,14 +19,18 @@ public static class BoardEffectJson
         .AddBoardEffect("WallsPlacement", Create)
         .AddBoardEffect("WindGust", Create)
         .AddBoardEffect("CheckerboardWipe", Create)
-        .AddBoardEffect("TidalWave", Create);
+        .AddBoardEffect("TidalWave", Create)
+        .AddBoardEffect("Reinforcements", entry => Create(entry, catalog));
 
-    public static (GlobalDef Def, int[] Vars) Create(JsonElement entry)
+    public static (GlobalDef Def, int[] Vars) Create(JsonElement entry) => Create(entry, null);
+
+    /// <param name="catalog">Needed by effects that name content (Reinforcements looks up its roster); may be null otherwise.</param>
+    public static (GlobalDef Def, int[] Vars) Create(JsonElement entry, Catalog? catalog)
     {
         if (!entry.TryGetProperty("condition", out var condition)) throw new FormatException("board effect has no condition");
         if (!entry.TryGetProperty("effect", out var effect)) throw new FormatException("board effect has no effect");
 
-        var def = new BoardEffectDef(ParseCondition(condition), ParseEffect(effect),
+        var def = new BoardEffectDef(ParseCondition(condition), ParseEffect(effect, catalog),
             OptionalString(entry, "name"), OptionalString(entry, "description"));
         return (def, Array.Empty<int>());
     }
@@ -49,7 +53,9 @@ public static class BoardEffectJson
         }
     }
 
-    public static BoardEffect ParseEffect(JsonElement effect)
+    public static BoardEffect ParseEffect(JsonElement effect) => ParseEffect(effect, null);
+
+    public static BoardEffect ParseEffect(JsonElement effect, Catalog? catalog)
     {
         var p = Params(effect);
         switch (Type(effect))
@@ -67,6 +73,8 @@ public static class BoardEffectJson
                 return new CheckerboardWipeEffect(color, Int(p, "freezeDuration", 2), Bool(p, "alternating", false));
             case "TidalWave":
                 return ParseTidalWave(p);
+            case "Reinforcements":
+                return ParseReinforcements(p, catalog ?? throw new FormatException("Reinforcements needs a catalog"));
             case var other:
                 throw new FormatException($"unknown board effect '{other}'");
         }
@@ -82,21 +90,44 @@ public static class BoardEffectJson
             || !Enum.IsDefined(direction) || int.TryParse(String(p, "direction"), out _))
             throw new FormatException("TidalWave needs a direction of north, south, east or west");
 
+        var squares = ParseSquares(p, "TidalWave");
+        int strength = Int(p, "strength", 1);
+        if (strength < 1 || strength > TidalWaveEffect.MaxStrength)
+            throw new FormatException($"TidalWave needs a strength from 1 to {TidalWaveEffect.MaxStrength}");
+        return new TidalWaveEffect(direction, squares, strength);
+    }
+
+    /// <summary>
+    /// <c>{ "side": "white|black", "roster": "soldier", "pieceValue": 6, "abilityValue": 3, "squares": ["a7", ...] }</c>.
+    /// <c>side</c> defaults to White and <c>abilityValue</c> to 0; the roster must be in the catalog.
+    /// </summary>
+    private static ReinforcementsEffect ParseReinforcements(JsonElement? p, Catalog catalog)
+    {
+        string rosterId = String(p, "roster") ?? throw new FormatException("Reinforcements needs a roster");
+        var roster = catalog.FindRoster(rosterId) ?? throw new FormatException($"Reinforcements: unknown roster '{rosterId}'");
+        if (p is not { } o || !o.TryGetProperty("pieceValue", out var pv) || pv.ValueKind != JsonValueKind.Number)
+            throw new FormatException("Reinforcements needs a pieceValue");
+        int pieceValue = pv.GetInt32();
+        if (pieceValue < 1) throw new FormatException("Reinforcements needs a pieceValue of at least 1");
+        int abilityValue = Int(p, "abilityValue", 0);
+        if (abilityValue < 0) throw new FormatException("Reinforcements needs an abilityValue of 0 or more");
+        return new ReinforcementsEffect(SideParam(p, "side"), roster, pieceValue, abilityValue, ParseSquares(p, "Reinforcements"), catalog);
+    }
+
+    /// <summary>A non-empty <c>"squares"</c> list of names like "a6". Not bounds-checked (the board isn't known yet).</summary>
+    private static List<(int X, int Y)> ParseSquares(JsonElement? p, string effect)
+    {
         if (p is not { } o || !o.TryGetProperty("squares", out var list) || list.ValueKind != JsonValueKind.Array || list.GetArrayLength() == 0)
-            throw new FormatException("TidalWave needs a non-empty list of squares");
+            throw new FormatException($"{effect} needs a non-empty list of squares");
         var squares = new List<(int X, int Y)>();
         foreach (var item in list.EnumerateArray())
         {
             string name = item.ValueKind == JsonValueKind.String ? item.GetString()! : item.ToString();
             if (name.Length < 2 || name[0] < 'a' || name[0] > 'z' || !int.TryParse(name.AsSpan(1), out int rank) || rank < 1)
-                throw new FormatException($"TidalWave: bad square name '{name}'");
+                throw new FormatException($"{effect}: bad square name '{name}'");
             squares.Add((name[0] - 'a', rank - 1));
         }
-
-        int strength = Int(p, "strength", 1);
-        if (strength < 1 || strength > TidalWaveEffect.MaxStrength)
-            throw new FormatException($"TidalWave needs a strength from 1 to {TidalWaveEffect.MaxStrength}");
-        return new TidalWaveEffect(direction, squares, strength);
+        return squares;
     }
 
     private static string Type(JsonElement e)
