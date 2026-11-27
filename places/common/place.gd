@@ -10,6 +10,7 @@ extends Node3D
 
 const ChessSet := preload("res://inn/chess_set.gd")
 const InnMatch := preload("res://inn/InnMatch.cs")
+const SharpLayer := preload("res://common/sharp_layer.gd")
 const MENU_SCENE := "res://menu/MainMenu.tscn"
 const SETTINGS_FILE := "user://menu_settings.cfg"
 const FPS_CAP := 60
@@ -39,6 +40,9 @@ const LEAN_ZOOM := 0.72
 const FOLLOW_RATE := 5.0
 const AUTOPLAY_ARG := "--inn-autoplay"
 const REACH_SECONDS := 0.32
+
+## Start seated at the board, leaned in to play (previews, tools).
+@export var skip_intro := false
 
 @onready var _stage: SubViewport = $Stage
 @onready var _camera: Camera3D = $Stage/Camera
@@ -78,7 +82,7 @@ func _ready() -> void:
 	_camera.transform = _walk_shot(0.0)
 	get_viewport().size_changed.connect(_frame_stage)
 	_frame_stage()
-	if _reduced_motion:
+	if _reduced_motion or skip_intro:
 		_zoom = LEAN_ZOOM
 		_camera.transform = _lean_shot()
 		_frame_stage()
@@ -177,6 +181,11 @@ func _walk_in() -> void:
 
 func _begin_play() -> void:
 	_light_board()
+	# The pieces in play, drawn at full resolution over the pixel stage.
+	var sharp := SharpLayer.new()
+	sharp.setup(_stage, _camera, $Display)
+	add_child(sharp)
+	sharp.reveal(_board)
 	_match = InnMatch.new()
 	add_child(_match)
 	_match.connect("Moved", _on_moved)
