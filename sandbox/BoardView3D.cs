@@ -27,6 +27,9 @@ public partial class BoardView3D : Control
     private const int PixelLongEdge = 704;
     private SubViewport _viewport = null!;
     private Node3D _world = null!, _board = null!;
+    /// <summary>Beer puddles on Slippery squares (common/beer_spill.gd).</summary>
+    private Node3D? _beer;
+    private const string BeerTile = "slippery";
     private Camera3D _camera = null!;
     private Control _overlay = null!;
     private PieceVisualResolver _resolver = null!;
@@ -112,6 +115,8 @@ public partial class BoardView3D : Control
     {
         if (!IsNodeReady() || State == null) return;
         _selectionHighlight.Clear();
+        // A new game or board puts its puddles straight down; within a game, new ones are spilled.
+        bool animateBeer = ReferenceEquals(State, _shownState);
         if (!ReferenceEquals(State, _shownState))
         {
             foreach (var entry in _pieces.Values) RemoveVisual(entry.Node);
@@ -120,6 +125,8 @@ public partial class BoardView3D : Control
         }
         if (_board == null || _width != State.Width || _height != State.Height || _shownStage != Stage)
         {
+            animateBeer = false;
+            _beer?.Call("dry_all", false);
             if (_shownStage != Stage) BuildSetting();
             if (_board != null) RemoveVisual(_board);
             _width = State.Width; _height = State.Height;
@@ -169,7 +176,47 @@ public partial class BoardView3D : Control
             RemoveVisual(_pieces[id].Node);
             _pieces.Remove(id);
         }
+        ShowBeer(animateBeer);
         _overlay.QueueRedraw();
+    }
+
+    /// <summary>The Slippery hook: a beer puddle on every square whose tile is Slippery. Squares that turned
+    /// Slippery since the last refresh get beer spilled on them; puddles whose square isn't Slippery any more
+    /// dry off. Runs from RefreshVisuals, so any engine change that sets or clears the tile shows up.</summary>
+    private void ShowBeer(bool animate)
+    {
+        var points = new Godot.Collections.Dictionary();
+        for (int sq = 0; sq < State!.Area; sq++)
+            if (State.TileAt(sq).Def.Id == BeerTile) points[sq] = SquareCenter(sq);
+        if (points.Count == 0 && _beer == null) return;
+        Beer().Call("sync", points, animate);
+    }
+
+    private Node3D Beer()
+    {
+        if (_beer != null) return _beer;
+        _beer = (Node3D)GD.Load<GDScript>("res://common/beer_spill.gd").New().AsGodotObject();
+        _beer.Name = "Beer";
+        _beer.Set("square_size", CellSize);
+        // Under the pieces' contact shadows, which lie 0.01 up.
+        _beer.Set("lift", 0.005f);
+        _world.AddChild(_beer);
+        return _beer;
+    }
+
+    /// <summary>Throws beer onto <paramref name="squares"/> on demand, leaving a puddle on each until
+    /// <see cref="DryBeer"/>. Refreshes leave these alone; only Slippery puddles follow the tiles.</summary>
+    public void SpillBeer(IEnumerable<int> squares)
+    {
+        var points = new Godot.Collections.Dictionary();
+        foreach (int sq in squares) points[sq] = SquareCenter(sq);
+        Beer().Call("spill_all", points, true);
+    }
+
+    /// <summary>Dries the beer off <paramref name="squares"/> with a short fade.</summary>
+    public void DryBeer(IEnumerable<int> squares)
+    {
+        foreach (int sq in squares) Beer().Call("dry", sq, true);
     }
 
     private void BuildSetting()
@@ -285,8 +332,10 @@ public partial class BoardView3D : Control
             var tile = State.TileAt(sq);
             if (!tile.Def.IsDefault)
             {
-                var color = tile.Def.Id switch { "wall" => Colors.Silver, "guardian" => Colors.Gold, "fog" => Colors.LightSteelBlue, _ => Colors.Orchid };
-                Outline(sq, color, 0.13f);
+                var color = tile.Def.Id switch { "wall" => Colors.Silver, "guardian" => Colors.Gold, "fog" => Colors.LightSteelBlue,
+                    BeerTile => new Color(1f, 0.72f, 0.25f), _ => Colors.Orchid };
+                // A Slippery square's beer puddle already marks it.
+                if (tile.Def.Id != BeerTile) Outline(sq, color, 0.13f);
                 Text(Project(c + new Vector3(-0.55f, 0.03f, -0.4f)), tile.Def.Name, color, 12);
             }
             if (State.PieceAt(sq) is { } piece && piece.Abilities.Count > 0)
