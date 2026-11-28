@@ -553,7 +553,7 @@ internal sealed class Resolver
         {
             var p = _batch[_tileWinner[sq]];
             var old = s.TileAt(sq);
-            var tile = p.Tile!.IsDefault ? Tile.Standard : new Tile(p.Tile, p.Vars);
+            var tile = p.Tile!.IsDefault ? Tile.Standard : new Tile(p.Tile, p.Vars, p.Value);
             s.ReplaceTile(sq, tile);
             _changedTiles.Add(sq);
             _newFacts.Add(new Fact(FactKinds.TileChanged) { From = sq, OldTile = old, NewTile = tile, Source = p.Source, Cause = p.Cause });

@@ -44,7 +44,7 @@ public readonly record struct Proposal(ProposalKind Kind)
     public VarTarget Var { get; init; }
     public int Slot { get; init; }
 
-    /// <summary>Delta (AddVar, Clock) or value (SetVar).</summary>
+    /// <summary>Delta (AddVar, Clock), value (SetVar), or the new tile's lifetime in turns (ChangeTile; 0 = permanent, see <see cref="Core.Tile.IsTimed"/>).</summary>
     public int Value { get; init; }
 
     public string Cause { get; init; } = "";
@@ -77,6 +77,13 @@ public readonly record struct Proposal(ProposalKind Kind)
 
     public static Proposal ChangeTile(int square, TileDef tile, string cause, params int[] vars)
         => new(ProposalKind.ChangeTile) { Square = square, Tile = tile, Cause = cause, Vars = vars };
+
+    /// <summary>
+    /// A <see cref="ChangeTile"/> whose new tile turns back into floor after <paramref name="turns"/> turn ends
+    /// (0 = permanent). <paramref name="vars"/> are the def's own variables.
+    /// </summary>
+    public static Proposal ChangeTimedTile(int square, TileDef tile, int turns, string cause, params int[] vars)
+        => new(ProposalKind.ChangeTile) { Square = square, Tile = tile, Cause = cause, Vars = vars, Value = turns > 0 ? turns : 0 };
 
     public static Proposal AddVar(VarTarget target, int slot, int delta, string cause)
         => new(ProposalKind.AddVar) { Var = target, Slot = slot, Value = delta, Cause = cause };

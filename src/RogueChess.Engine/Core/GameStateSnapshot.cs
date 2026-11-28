@@ -94,8 +94,7 @@ public sealed partial class GameState
         {
             var tile = snapshot.Tiles[i];
             var def = catalog.FindTile(tile.Id) ?? throw new FormatException($"Unknown tile '{tile.Id}'.");
-            if (tile.Vars.Length != def.VarCount) throw new FormatException("Invalid tile state.");
-            state._tiles[i] = def.IsDefault ? Tile.Standard : new Tile(def, tile.Vars);
+            state._tiles[i] = Tile.FromRaw(def, tile.Vars);
         }
         foreach (var global in snapshot.Globals)
         {

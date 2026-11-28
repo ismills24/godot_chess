@@ -146,6 +146,16 @@ public sealed partial class GameState : IBoardView
     public void SetTile(int sq, TileDef def, params int[] vars)
         => ReplaceTile(sq, def.IsDefault ? Tile.Standard : new Tile(def, vars));
 
+    /// <summary>
+    /// Place a tile that turns back into floor after <paramref name="turns"/> turn ends (see <see cref="Tile.IsTimed"/>).
+    /// <paramref name="vars"/> are the def's own variables (its initial ones when none are given). Undoable.
+    /// </summary>
+    public void SetTimedTile(int sq, TileDef def, int turns, params int[] vars)
+    {
+        if (turns < 1) throw new ArgumentOutOfRangeException(nameof(turns), "a timed tile needs at least one turn");
+        ReplaceTile(sq, def.IsDefault ? Tile.Standard : new Tile(def, vars, turns));
+    }
+
     public GlobalInstance AddGlobal(GlobalDef def, params int[] vars)
     {
         var inst = new GlobalInstance(def, vars);

@@ -28,6 +28,12 @@ public static class Causes
     /// <summary>A caster ability's tile placement (FireMage, FreezeMage, WallPlacement).</summary>
     public const string Cast = "cast";
 
+    /// <summary>A timed tile (<see cref="Core.Tile.IsTimed"/>) running out and turning back into floor.</summary>
+    public const string TileExpired = "tile-expired";
+
+    /// <summary>A timed tile's lifetime counting down by one at a turn end.</summary>
+    public const string TileLifetimeTick = "tile-lifetime-tick";
+
     /// <summary>A piece destroyed by its OnFire status running out.</summary>
     public const string Burned = "burned";
 

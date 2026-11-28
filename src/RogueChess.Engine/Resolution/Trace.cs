@@ -107,7 +107,7 @@ internal static class TraceText
         ProposalKind.ChangeDef => $"change {PieceName(b, p.PieceId)} to {p.Def} ({p.Cause}) by {p.Source}",
         ProposalKind.AddAbility => $"add {p.Ability} to {PieceName(b, p.PieceId)} ({p.Cause}) by {p.Source}",
         ProposalKind.RemoveAbility => $"remove {p.Ability} from {PieceName(b, p.PieceId)} ({p.Cause}) by {p.Source}",
-        ProposalKind.ChangeTile => $"tile {Sq(b, p.Square)} -> {p.Tile} ({p.Cause}) by {p.Source}",
+        ProposalKind.ChangeTile => $"tile {Sq(b, p.Square)} -> {p.Tile}{(p.Value > 0 ? $" for {p.Value} turns" : "")} ({p.Cause}) by {p.Source}",
         ProposalKind.AddVar => $"var {p.Var}[{p.Slot}] += {p.Value} ({p.Cause}) by {p.Source}",
         ProposalKind.SetVar => $"var {p.Var}[{p.Slot}] = {p.Value} ({p.Cause}) by {p.Source}",
         ProposalKind.Clock => $"clock {p.Side} {p.Value:+#;-#;0}ms ({p.Cause}) by {p.Source}",

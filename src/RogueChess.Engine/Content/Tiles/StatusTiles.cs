@@ -43,6 +43,11 @@ public abstract class StatusTile : TileDef
 
     public override int[] InitialVars() => new[] { DefaultTurns, DefaultStatusTurns };
 
+    private static readonly string[] Names = { "turns", "statusTurns" };
+
+    /// <summary>"turns" (the tile's own timer) and "statusTurns" (how long the status it gives lasts).</summary>
+    public override System.Collections.Generic.IReadOnlyList<string> VarNames => Names;
+
     public override FactKinds Triggers => FactKinds.Moved | FactKinds.Spawned | FactKinds.TurnEnded;
 
     public override void OnFact(TriggerContext ctx, in Fact fact)

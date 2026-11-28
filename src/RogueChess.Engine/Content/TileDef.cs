@@ -45,6 +45,13 @@ public class TileDef : Behavior
     /// <summary>Variables a new tile starts with when none are given (e.g. a fire timer). Default: all zero.</summary>
     public virtual int[] InitialVars() => System.Array.Empty<int>();
 
+    /// <summary>
+    /// Names of the variables content may set by name (slot i is named VarNames[i]), e.g. a placement's
+    /// <c>"params": { "statusTurns": 2 }</c>. Default: none. Internal state that content shouldn't set
+    /// (a tomb's piece id) stays unnamed.
+    /// </summary>
+    public virtual System.Collections.Generic.IReadOnlyList<string> VarNames => System.Array.Empty<string>();
+
     internal ulong HashId { get; }
 
     public override string ToString() => Id;
