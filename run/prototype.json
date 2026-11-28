@@ -23,9 +23,9 @@
         },
         "boardEffects": [
           { "id": "beer-spill", "name": "Beer spill",
-            "description": "The bartender spills beer on 3 random squares every 6 turns; it stays slippery for 4 turns.",
+            "description": "The bartender spills beer on 3 random squares every 6 turns; it stays slippery for 6 turns.",
             "condition": { "type": "TurnInterval", "params": { "interval": 6, "startTurn": 2 } },
-            "effect": { "type": "RandomTiles", "params": { "count": 3, "includeOccupied": true, "tile": "slippery", "duration": 4, "cause": "beer-spill" } } }
+            "effect": { "type": "RandomTiles", "params": { "count": 3, "includeOccupied": true, "tile": "slippery", "duration": 6, "cause": "beer-spill" } } }
         ]
       }
     },

@@ -55,7 +55,7 @@ public partial class InnMatch : Node
     private const string BeerSpill = """
         { "id": "beer-spill", "name": "Beer spill",
           "condition": { "type": "TurnInterval", "params": { "interval": 6, "startTurn": 2 } },
-          "effect": { "type": "RandomTiles", "params": { "count": 3, "includeOccupied": true, "tile": "slippery", "duration": 4, "cause": "beer-spill" } } }
+          "effect": { "type": "RandomTiles", "params": { "count": 3, "includeOccupied": true, "tile": "slippery", "duration": 6, "cause": "beer-spill" } } }
         """;
 
     /// <summary>The preview's battle, at the size `-- --board=WxH` asks for (up to 10x10).</summary>
