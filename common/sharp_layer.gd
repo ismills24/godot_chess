@@ -29,6 +29,8 @@ func setup(stage: SubViewport, stage_camera: Camera3D, display: CanvasItem) -> v
 	_view.world_3d = stage.find_world_3d()
 	_view.transparent_bg = true
 	_view.msaa_3d = Viewport.MSAA_4X
+	# SubViewports default to a 2048 shadow atlas whatever project.godot says; match the stage.
+	_view.positional_shadow_atlas_size = stage.positional_shadow_atlas_size
 	_view.gui_disable_input = true
 	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(_view)

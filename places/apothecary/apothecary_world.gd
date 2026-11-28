@@ -10,6 +10,9 @@ const OLD_WOOD := preload("res://inn/old_wood.gdshader")
 const OLD_PLASTER := preload("res://inn/old_plaster.gdshader")
 const HALO := preload("res://inn/halo.gdshader")
 const MIST := preload("res://menu/mist.gdshader")
+const RUG := preload("res://places/apothecary/rug.gdshader")
+const TABLE_TOP := preload("res://places/apothecary/table_top.gdshader")
+const WAX := preload("res://places/apothecary/wax.gdshader")
 const ROUND_TABLE := preload("res://inn/props/round_table.glb")
 const STOOL := preload("res://inn/props/stool.glb")
 const BARREL := preload("res://inn/props/barrel.glb")
@@ -47,6 +50,8 @@ var _motes: MultiMesh
 var _hanging: Array[Node3D] = []
 var _candle: OmniLight3D
 var _flame := _glowing(Color("ffd27a"), 7.0)
+## Upright cylinders batched by material, drawn round (32 sides) by _flush_boxes().
+var _rounds: Dictionary = {}
 
 
 func build() -> void:
@@ -89,6 +94,52 @@ func _animate() -> void:
 			_motes.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ONE * size), at))
 
 
+## Batched upright cylinder, as place_world's, but kept here so it can be drawn smooth.
+func _cyl(material: Material, at: Vector3, radius: float, height: float) -> void:
+	if not _rounds.has(material):
+		_rounds[material] = []
+	_rounds[material].append(Transform3D(Basis.from_scale(Vector3(radius, height, radius)), at))
+
+
+func _flush_boxes() -> void:
+	super()
+	var unit := CylinderMesh.new()
+	unit.top_radius = 1.0
+	unit.bottom_radius = 1.0
+	unit.height = 1.0
+	unit.radial_segments = 32
+	unit.rings = 0
+	for material: Material in _rounds:
+		_scatter(unit, material, _rounds[material])
+	_rounds.clear()
+
+
+## A smooth turned shape: `profile` is (radius, height) pairs from the foot up, spun round y.
+static func _lathe(profile: PackedVector2Array, segments := 40) -> ArrayMesh:
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var count := profile.size()
+	# Smooth normals from the profile's slope at each point.
+	var normals: Array[Vector2] = []
+	for i in count:
+		var before := profile[maxi(i - 1, 0)]
+		var after := profile[mini(i + 1, count - 1)]
+		var along := (after - before).normalized()
+		normals.append(Vector2(along.y, -along.x))
+	for i in count - 1:
+		for k in segments:
+			var corners := [Vector2i(k, i), Vector2i(k + 1, i), Vector2i(k, i + 1),
+				Vector2i(k, i + 1), Vector2i(k + 1, i), Vector2i(k + 1, i + 1)]
+			for c: Vector2i in corners:
+				var angle := TAU * c.x / segments
+				var point := profile[c.y]
+				var n := normals[c.y]
+				tool.set_normal(Vector3(cos(angle) * n.x, n.y, sin(angle) * n.x))
+				tool.set_uv(Vector2(float(c.x) / segments, point.y))
+				tool.add_vertex(Vector3(cos(angle) * point.x, point.y, sin(angle) * point.x))
+	return tool.commit()
+
+
 func _wood(color: Color) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = OLD_WOOD
@@ -129,28 +180,11 @@ func _build_shell() -> void:
 	_box(_shelf_wood, Vector3(0, BEAMS + 0.25, (FRONT + BACK) * 0.5), Vector3(RIGHT - LEFT, 0.06, FRONT - BACK))
 	# A pink rug across the middle of the floor.
 	var rug := ShaderMaterial.new()
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-void fragment() {
-	vec2 p = UV * vec2(9.0, 13.0);
-	vec2 f = abs(fract(p) - 0.5);
-	float diamond = step(f.x + f.y, 0.32);
-	float border = step(0.42, max(abs(UV.x - 0.5), abs(UV.y - 0.5)));
-	float stripe = step(0.38, max(abs(UV.x - 0.5), abs(UV.y - 0.5))) * (1.0 - border);
-	vec3 base = vec3(0.42, 0.12, 0.26);
-	vec3 color = mix(base, vec3(0.7, 0.3, 0.45), diamond * 0.6);
-	color = mix(color, vec3(0.2, 0.06, 0.16), border);
-	color = mix(color, vec3(0.75, 0.55, 0.35), stripe * 0.7);
-	float worn = fract(sin(dot(floor(UV * 60.0), vec2(12.9898, 78.233))) * 43758.5453);
-	ALBEDO = color * (0.8 + 0.25 * worn);
-	ROUGHNESS = 1.0;
-}
-"""
-	rug.shader = shader
-	var mat := PlaneMesh.new()
-	mat.size = Vector2(2.6, 3.8)
-	_mesh(self, mat, rug, Vector3(0.3, 0.004, -3.6)).rotation.y = 0.04
+	rug.shader = RUG
+	var rug_mesh := PlaneMesh.new()
+	rug_mesh.size = Vector2(2.6, 3.8 + 0.14)
+	_mesh(self, rug_mesh, rug, Vector3(0.3, 0.004, -3.6)).rotation.y = 0.04
+
 
 
 ## The moonlit window at the back, leaded panes and pink curtains drawn aside.
@@ -252,8 +286,8 @@ func _build_counter() -> void:
 	var flask := SphereMesh.new()
 	flask.radius = 0.22
 	flask.height = 0.4
-	flask.radial_segments = 12
-	flask.rings = 6
+	flask.radial_segments = 48
+	flask.rings = 24
 	_mesh(self, flask, _potions[0], Vector3(0.9, top + 0.2, counter_z))
 	_cyl(_dark_glass[1], Vector3(0.9, top + 0.44, counter_z), 0.06, 0.12)
 	# The alembic: a still on a brass burner, its long arm reaching to a receiving flask.
@@ -261,8 +295,8 @@ func _build_counter() -> void:
 	var still := SphereMesh.new()
 	still.radius = 0.14
 	still.height = 0.26
-	still.radial_segments = 10
-	still.rings = 5
+	still.radial_segments = 48
+	still.rings = 24
 	_mesh(self, still, _potions[3], Vector3(-0.9, top + 0.25, counter_z))
 	_cyl(_brass, Vector3(-0.9, top + 0.44, counter_z), 0.03, 0.14)
 	_box(_brass, Vector3(-0.62, top + 0.42, counter_z), Vector3(0.6, 0.02, 0.02), Vector3(0, 0, -0.3))
@@ -291,8 +325,8 @@ func _build_hanging() -> void:
 		var bulb := SphereMesh.new()
 		bulb.radius = 0.09 + 0.03 * (k % 2)
 		bulb.height = bulb.radius * 2.0
-		bulb.radial_segments = 8
-		bulb.rings = 4
+		bulb.radial_segments = 48
+		bulb.rings = 24
 		_mesh(hook, bulb, _potions[k % _potions.size()], Vector3(0, -drop - bulb.radius, 0))
 		_box_mesh(hook, _cork, Vector3(0, -drop + 0.02, 0), Vector3(0.04, 0.05, 0.04))
 		_hanging.append(hook)
@@ -316,7 +350,7 @@ func _build_hanging() -> void:
 
 ## The little table in the middle of the shop, the board, the candle and the alchemist.
 func _build_table() -> void:
-	_place_prop(ROUND_TABLE, TABLE_AT, TABLE_HEIGHT, 0.6)
+	var table := _place_prop(ROUND_TABLE, TABLE_AT, TABLE_HEIGHT, 0.6)
 	var surface := TABLE_AT + Vector3(0, TABLE_HEIGHT, 0)
 	_place_board(surface, 0.0)
 	_place_prop(STOOL, Vector3(TABLE_AT.x, 0, TABLE_AT.z - 0.7), 0.47, 0.3)
@@ -328,21 +362,135 @@ func _build_table() -> void:
 		"beard": "long", "beard_color": Color("d8d4cc"),
 		"extras": ["spectacles", "beads"], "phase": 0.6,
 	}, Vector3(TABLE_AT.x, 0, TABLE_AT.z - 0.7), 0.0)
-	# A candle on the far left of the table, a little bowl of something and a vial.
+	# A candle on the far left of the table, in a brass holder, and a vial of violet potion.
 	var wick := surface + Vector3(-0.33, 0.0, -0.24)
-	_cyl(_paint(Color("d8c8a8"), 0.7), wick + Vector3(0, 0.05, 0), 0.022, 0.1)
-	_box(_flame, wick + Vector3(0, 0.12, 0), Vector3(0.014, 0.03, 0.014))
+	_build_candle(wick)
+	_build_vial(surface + Vector3(0.34, 0.0, -0.26))
+	_dress_table(table, wick)
+
+
+## The table's wood, re-dressed so its top stays sharp when it fills the seated view.
+func _dress_table(table: Node3D, wick: Vector3) -> void:
+	for mesh: MeshInstance3D in table.find_children("*", "MeshInstance3D", true, false):
+		for index in mesh.mesh.get_surface_count():
+			var original := mesh.get_active_material(index) as StandardMaterial3D
+			if original == null or original.albedo_texture == null:
+				continue
+			var dressed := ShaderMaterial.new()
+			dressed.shader = TABLE_TOP
+			dressed.set_shader_parameter("albedo_tex", original.albedo_texture)
+			dressed.set_shader_parameter("normal_tex", original.normal_texture)
+			dressed.set_shader_parameter("orm_tex", original.roughness_texture)
+			dressed.set_shader_parameter("top_y", TABLE_AT.y + TABLE_HEIGHT)
+			dressed.set_shader_parameter("centre", Vector2(TABLE_AT.x, TABLE_AT.z))
+			dressed.set_shader_parameter("wick", Vector2(wick.x, wick.z))
+			mesh.set_surface_override_material(index, dressed)
+
+
+## A beeswax candle burnt half down in a brass chamberstick, wax run down one side.
+func _build_candle(wick: Vector3) -> void:
+	var first_part := get_child_count()
+	var brass := _paint(Color("6a4a20"), 0.35, 0.6)
+	var dish := _lathe(PackedVector2Array([Vector2(0.0, 0.0), Vector2(0.062, 0.0), Vector2(0.066, 0.004),
+		Vector2(0.066, 0.009), Vector2(0.06, 0.012), Vector2(0.03, 0.013), Vector2(0.022, 0.016),
+		Vector2(0.02, 0.028), Vector2(0.025, 0.032), Vector2(0.025, 0.036), Vector2(0.019, 0.037), Vector2(0.0, 0.037)]))
+	_mesh(self, dish, brass, wick)
+	# A ring handle on one side of the dish.
+	var handle := TorusMesh.new()
+	handle.inner_radius = 0.012
+	handle.outer_radius = 0.018
+	handle.rings = 24
+	handle.ring_segments = 12
+	var ring := _mesh(self, handle, brass, wick + Vector3(0.072, 0.008, 0.0))
+	ring.rotation.x = PI * 0.5
+	# The candle: slightly uneven, a cupped top, wax runs down one side.
+	var height := 0.1
+	var wax := ShaderMaterial.new()
+	wax.shader = WAX
+	wax.set_shader_parameter("top_y", wick.y + 0.034 + height)
+	var profile := PackedVector2Array([Vector2(0.0, 0.0), Vector2(0.019, 0.0)])
+	for k in 9:
+		var t := (k + 1) / 9.0
+		profile.append(Vector2(0.019 + 0.0012 * sin(t * 11.0), t * height))
+	profile.append_array([Vector2(0.017, height + 0.002), Vector2(0.008, height - 0.004), Vector2(0.0, height - 0.005)])
+	var stick := _mesh(self, _lathe(profile), wax, wick + Vector3(0, 0.034, 0))
+	stick.rotation.y = 0.6
+	# Drips: thin runs down the side with a blob at the bottom of each.
+	for k in 3:
+		var angle := 0.8 + k * 0.7
+		var length := 0.03 + 0.025 * k
+		var side := Vector3(cos(angle), 0, sin(angle))
+		var run := CapsuleMesh.new()
+		run.radius = 0.0035
+		run.height = length
+		run.radial_segments = 12
+		run.rings = 4
+		_mesh(self, run, wax, wick + side * 0.0195 + Vector3(0, 0.034 + height - length * 0.5, 0))
+		var blob := SphereMesh.new()
+		blob.radius = 0.0055
+		blob.height = 0.009
+		blob.radial_segments = 16
+		blob.rings = 8
+		_mesh(self, blob, wax, wick + side * 0.02 + Vector3(0, 0.034 + height - length + 0.002, 0))
+	# The wick and the flame.
+	var top := wick + Vector3(0, 0.034 + height, 0)
+	_mesh(self, _lathe(PackedVector2Array([Vector2(0.0012, -0.004), Vector2(0.0012, 0.008), Vector2(0.0, 0.011)]), 8),
+		_paint(Color("1a1410"), 0.9), top).rotation.z = 0.15
+	var flame := _mesh(self, _flame_shape(), _flame, top + Vector3(0, 0.006, 0))
+	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var core := _mesh(self, _flame_shape(), _glowing(Color("ff9a40"), 4.0), top + Vector3(0, 0.004, 0))
+	core.scale = Vector3(0.55, 0.45, 0.55)
+	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var glow := QuadMesh.new()
-	glow.size = Vector2(0.3, 0.3)
-	_mesh(self, glow, _halo, wick + Vector3(0, 0.12, 0)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glow.size = Vector2(0.22, 0.22)
+	_mesh(self, glow, _halo, top + Vector3(0, 0.025, 0))
+	# Sat right under its own light, the candle would only throw huge, blotchy shadows of
+	# its drips across the table, and speckle itself; it casts none.
+	for index in range(first_part, get_child_count()):
+		var part := get_child(index) as GeometryInstance3D
+		if part:
+			part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_candle = OmniLight3D.new()
-	_candle.position = wick + Vector3(0, 0.16, 0)
+	_candle.position = top + Vector3(0, 0.05, 0)
 	_candle.light_color = Color("ffb070")
 	_candle.omni_range = 2.4
 	_candle.shadow_enabled = true
+	_candle.shadow_blur = 1.0
+	_candle.shadow_bias = 0.04
+	_candle.shadow_normal_bias = 1.5
 	add_child(_candle)
-	_cyl(_potions[2], surface + Vector3(0.34, 0.06, -0.26), 0.022, 0.12)
-	_cyl(_cork, surface + Vector3(0.34, 0.13, -0.26), 0.012, 0.02)
+
+
+## A smooth teardrop flame, 3.5 cm tall.
+static func _flame_shape() -> ArrayMesh:
+	var profile := PackedVector2Array()
+	for k in 13:
+		var t := k / 12.0
+		profile.append(Vector2(0.0065 * sin(PI * pow(t, 0.55)) * (1.0 - t * 0.35), t * 0.035))
+	return _lathe(profile, 20)
+
+
+## A little glass vial of glowing potion, its neck stoppered with cork.
+func _build_vial(foot: Vector3) -> void:
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(0.75, 0.7, 0.95, 0.28)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.roughness = 0.05
+	glass.metallic_specular = 0.9
+	glass.rim_enabled = true
+	glass.rim = 0.8
+	glass.rim_tint = 0.3
+	var shell := PackedVector2Array([Vector2(0.0, 0.0), Vector2(0.021, 0.0), Vector2(0.024, 0.004),
+		Vector2(0.024, 0.085), Vector2(0.02, 0.1), Vector2(0.009, 0.112), Vector2(0.008, 0.13),
+		Vector2(0.0105, 0.133), Vector2(0.0105, 0.137), Vector2(0.0, 0.137)])
+	var potion := PackedVector2Array([Vector2(0.0, 0.003), Vector2(0.021, 0.003), Vector2(0.022, 0.006),
+		Vector2(0.022, 0.07), Vector2(0.0, 0.07)])
+	_mesh(self, _lathe(potion), _potions[2], foot)
+	var vial := _mesh(self, _lathe(shell), glass, foot)
+	vial.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var cork := _lathe(PackedVector2Array([Vector2(0.0, 0.12), Vector2(0.0075, 0.12), Vector2(0.0085, 0.15),
+		Vector2(0.0078, 0.153), Vector2(0.0, 0.153)]), 20)
+	_mesh(self, cork, _cork, foot)
 
 
 func _build_clutter() -> void:
@@ -352,8 +500,8 @@ func _build_clutter() -> void:
 	var urn := SphereMesh.new()
 	urn.radius = 0.32
 	urn.height = 0.7
-	urn.radial_segments = 12
-	urn.rings = 6
+	urn.radial_segments = 48
+	urn.rings = 24
 	var glaze := _paint(Color("5a3a78"), 0.3)
 	_mesh(self, urn, glaze, Vector3(2.7, 1.05, -0.2))
 	_cyl(glaze, Vector3(2.7, 1.45, -0.2), 0.14, 0.12)

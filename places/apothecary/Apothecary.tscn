@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://places/common/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://places/apothecary/apothecary_world.gd" id="2_world"]
-[ext_resource type="Shader" path="res://menu/pixel_finish.gdshader" id="3_pixel"]
+[ext_resource type="Shader" path="res://common/scene_finish.gdshader" id="3_pixel"]
 
 [sub_resource type="Environment" id="Environment_place"]
 background_mode = 1
@@ -45,8 +45,10 @@ script = ExtResource("1_place")
 
 [node name="Stage" type="SubViewport" parent="."]
 own_world_3d = true
+msaa_3d = 2
+positional_shadow_atlas_size = 8192
 gui_disable_input = true
-size = Vector2i(704, 396)
+size = Vector2i(1600, 900)
 render_target_update_mode = 4
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="Stage"]

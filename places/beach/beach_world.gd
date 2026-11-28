@@ -9,14 +9,14 @@ extends "res://places/common/place_world.gd"
 
 const SEA := preload("res://places/common/sea.gdshader")
 const BARREL := preload("res://inn/props/barrel.glb")
-const CRATE := preload("res://inn/props/crate.glb")
+const SAND := preload("res://places/beach/beach_sand.gdshader")
+const WOOD := preload("res://places/beach/beach_wood.gdshader")
 const BUCKET := preload("res://inn/props/bucket.glb")
 
 const WATER := -0.3
 const TABLE_AT := Vector2(0.6, -9.0)
 
-var _sand := _terrain_material({"color_a": Color("e0c89c"), "color_b": Color("d0b484"), "low_color": Color("a08a68"),
-	"low_height": -0.24, "scale": 0.35, "speckle": 0.35, "ripples": 1.0})
+var _sand := _sand_material()
 var _cliff := _terrain_material({"color_a": Color("c8b48e"), "color_b": Color("9a8a70"), "top_color": Color("4a6a2a"),
 	"top_amount": 0.42, "scale": 0.22, "strata": 1.0, "speckle": 0.4, "cracks": 0.6})
 var _boulder := _terrain_material({"color_a": Color("4a4238"), "color_b": Color("2e2a24"), "top_color": Color("5a6a3a"),
@@ -42,6 +42,15 @@ func build() -> void:
 	seat_eye = Vector3(TABLE_AT.x, ground_at(TABLE_AT.x, -8.38) + 1.08, -8.38)
 	var sun := _sun(34.0, 62.0, Color("ffe4b8"), 1.9)
 	sun.directional_shadow_max_distance = 60.0
+	# Most of the first cascade on the table, so the shadows round the board stay sharp.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_split_1 = 0.04
+	sun.directional_shadow_split_2 = 0.15
+	sun.directional_shadow_split_3 = 0.4
+	sun.directional_shadow_blend_splits = true
+	sun.shadow_bias = 0.03
+	sun.shadow_normal_bias = 0.8
+	sun.shadow_blur = 1.2
 	_build_sand()
 	_build_sea()
 	_build_cliffs()
@@ -84,6 +93,16 @@ func ground_at(x: float, z: float) -> float:
 	if d < -5.0:
 		y += 0.03 * pow(-d - 5.0, 1.6)
 	return y + 0.06 * sin(x * 0.9 + z * 0.4) * sin(z * 0.7)
+
+
+func _sand_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = SAND
+	material.set_shader_parameter("color_a", Color("e0c89c"))
+	material.set_shader_parameter("color_b", Color("d0b484"))
+	material.set_shader_parameter("low_color", Color("a08a68"))
+	material.set_shader_parameter("low_height", -0.24)
+	return material
 
 
 func _build_sand() -> void:
@@ -204,10 +223,15 @@ func _build_palms() -> void:
 ## pulled up and turned over, a rod stuck in the sand, a net, a bucket.
 func _build_camp() -> void:
 	var foot := Vector3(TABLE_AT.x, ground_at(TABLE_AT.x, TABLE_AT.y), TABLE_AT.y)
-	_place_prop(CRATE, foot - Vector3(0, 0.05, 0), 0.62, 0.15)
+	_build_crate(foot, 0.57)
 	_place_board(foot + Vector3(0, 0.57, 0), 0.0)
 	var barrel_at := Vector3(TABLE_AT.x, ground_at(TABLE_AT.x, TABLE_AT.y - 0.68), TABLE_AT.y - 0.68)
-	_place_prop(BARREL, barrel_at - Vector3(0, 0.04, 0), 0.62, 0.0)
+	# His barrel: the prop's painted label doesn't belong on a beach, so it gets old staves.
+	var barrel := _place_prop(BARREL, barrel_at - Vector3(0, 0.04, 0), 0.62, 0.0)
+	var staves := _wood({"grain_along_y": true, "bleach": 0.25, "ring_density": 40.0,
+		"light_color": Color(0.55, 0.4, 0.27), "mid_color": Color(0.38, 0.26, 0.17)})
+	for mesh: MeshInstance3D in barrel.find_children("*", "MeshInstance3D", true, false):
+		mesh.material_override = staves
 	_seat_opponent({
 		"seat": "chair", "seat_height": 0.58, "height": 1.02, "girth": 1.08,
 		"skin": Color("a8704c"), "coat": Color("2a4060"), "sleeves": Color("2a4060"), "legs": Color("3a3a48"),
@@ -222,8 +246,9 @@ func _build_camp() -> void:
 	trunk.top_radius = 0.17
 	trunk.bottom_radius = 0.2
 	trunk.height = 2.2
-	trunk.radial_segments = 8
-	_mesh(self, trunk, _drift, log_at).rotation = Vector3(0, 0.15, PI * 0.5)
+	trunk.radial_segments = 32
+	trunk.rings = 4
+	_mesh(self, trunk, _wood({"grain_along_y": true, "bleach": 0.85, "ring_density": 22.0}), log_at).rotation = Vector3(0, 0.15, PI * 0.5)
 	_box(_drift, log_at + Vector3(-1.0, 0.18, 0.1), Vector3(0.08, 0.5, 0.08), Vector3(0.3, 0, 0.6))
 	# The upturned rowing boat.
 	var boat := Node3D.new()
@@ -241,7 +266,15 @@ func _build_camp() -> void:
 	# His rod stuck in the sand, its line down into the sea.
 	var rod_at := Vector3(2.0, ground_at(2.0, -9.6), -9.6)
 	_box(_bark, rod_at + Vector3(0.35, 1.0, 0), Vector3(0.03, 2.4, 0.03), Vector3(0, 0, -0.5))
-	_box(_rope, rod_at + Vector3(1.6, 1.0, 0), Vector3(1.6, 0.006, 0.006), Vector3(0, 0, -0.95))
+	var line := CylinderMesh.new()
+	line.top_radius = 0.002
+	line.bottom_radius = 0.002
+	line.height = 1.6
+	line.radial_segments = 6
+	var line_node := _mesh(self, line, _rope, rod_at + Vector3(1.6, 1.0, 0))
+	line_node.rotation = Vector3(0, 0, -0.95 + PI * 0.5)
+	# Too thin to cast a clean shadow: it only drew a dotted line across the table.
+	line_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# A heap of net with floats, a bucket and a lantern.
 	_scatter(_lump_mesh(21, 0.5, true), _paint(Color("5a5040"), 1.0),
 		[_blob_at(Vector3(-0.5, ground_at(-0.5, -10.4) + 0.08, -10.4), Vector3(0.6, 0.2, 0.5), 0.3)])
@@ -249,15 +282,157 @@ func _build_camp() -> void:
 	for k in 4:
 		_box(float_paint, Vector3(-0.7 + k * 0.15, ground_at(-0.6, -10.3) + 0.22, -10.3 + (k % 2) * 0.2), Vector3.ONE * 0.08)
 	_place_prop(BUCKET, Vector3(1.4, ground_at(1.4, -9.2), -9.2), 0.3, 0.0)
-	var lantern := _glowing(Color("ffcc70"), 1.5)
-	_box(_paint(Color("2a2420"), 0.6, 0.4), Vector3(1.2, foot.y + 0.62, TABLE_AT.y - 0.2), Vector3(0.12, 0.02, 0.12))
-	_box(lantern, Vector3(1.2, foot.y + 0.72, TABLE_AT.y - 0.2), Vector3(0.09, 0.16, 0.09))
+	_build_lantern(foot + Vector3(0.315, 0.57, 0.13))
 	# Footprints in the sand leading up from the water to his seat.
 	var print_mark := _paint(Color("b89c70"), 1.0)
 	for k in 14:
 		var z := -9.0 + k * 0.45
 		var x := 1.4 + 0.4 * sin(k * 0.6) + (0.12 if k % 2 == 0 else -0.12)
 		_box(print_mark, Vector3(x, ground_at(x, z) + 0.004, z), Vector3(0.1, 0.006, 0.22), Vector3(0, 0.3, 0))
+
+
+## A weathered plank material; see beach_wood.gdshader.
+func _wood(params := {}) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = WOOD
+	for key: String in params:
+		material.set_shader_parameter(key, params[key])
+	return material
+
+
+## A plank sized in metres (the wood shader reads local metres), grain along its local X.
+func _plank(material: Material, at: Vector3, size: Vector3, angles := Vector3.ZERO) -> MeshInstance3D:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	var node := _mesh(self, mesh, material, at)
+	node.rotation = angles
+	return node
+
+
+## The sailor's table: an old sea crate of nailed planks, gaps between the boards, corner
+## posts, iron nails gone to rust. `foot` is the sand under it, `top` the height of its lid.
+func _build_crate(foot: Vector3, top: float) -> void:
+	var wood := _wood()
+	var posts := _wood({"bleach": 0.2, "light_color": Color(0.7, 0.55, 0.4), "mid_color": Color(0.5, 0.37, 0.26)})
+	var width := 0.76
+	var depth := 0.54
+	var gap := 0.007
+	var lid := 0.022
+	var sunk := 0.04
+	var height := top + sunk
+	var base := foot.y - sunk
+	top += foot.y
+	# The lid: four boards running across, one a touch proud of the others.
+	var boards := 4
+	var board_w := (depth - gap * (boards - 1)) / boards
+	for k in boards:
+		var z := -depth * 0.5 + board_w * 0.5 + k * (board_w + gap)
+		var lift := 0.002 if k == 1 else 0.0
+		_plank(wood, Vector3(foot.x, top - lid * 0.5 + lift, foot.z + z), Vector3(width, lid, board_w),
+			Vector3(0, 0.004 * (k - 1.5), 0.003 * (k % 2)))
+	# Dark inside, seen through the gaps between the lid boards.
+	_box(_paint(Color("1a120c"), 1.0), Vector3(foot.x, top - lid - 0.004, foot.z), Vector3(width - 0.05, 0.006, depth - 0.05))
+	# Sides: three boards a face, front and back running along X, the ends along Z.
+	var rows := 3
+	var side_h := (height - lid - gap * rows) / rows
+	var skin := 0.018
+	for k in rows:
+		var y := base + side_h * 0.5 + k * (side_h + gap)
+		for face: int in [-1, 1]:
+			_plank(wood, Vector3(foot.x, y, foot.z + face * (depth * 0.5 - skin * 0.5)), Vector3(width - 0.004, side_h, skin))
+			_plank(wood, Vector3(foot.x + face * (width * 0.5 - skin * 0.5), y, foot.z),
+				Vector3(depth - 2.0 * skin, side_h, skin), Vector3(0, PI * 0.5, 0))
+	# Corner posts and a batten round the top edge.
+	var post := 0.045
+	for cx: int in [-1, 1]:
+		for cz: int in [-1, 1]:
+			_plank(posts, Vector3(foot.x + cx * (width * 0.5 + 0.004 - post * 0.5), base + (height - lid) * 0.5,
+				foot.z + cz * (depth * 0.5 + 0.004 - post * 0.5)), Vector3(height - lid, post, post), Vector3(0, 0, PI * 0.5))
+	for face: int in [-1, 1]:
+		_plank(posts, Vector3(foot.x, top - lid - 0.03, foot.z + face * (depth * 0.5 + 0.006)), Vector3(width - 2.0 * post, 0.05, 0.014))
+		_plank(posts, Vector3(foot.x + face * (width * 0.5 + 0.006), top - lid - 0.03, foot.z), Vector3(depth - 2.0 * post, 0.05, 0.014),
+			Vector3(0, PI * 0.5, 0))
+	# Rusty nail heads at each end of every lid board.
+	var nail := _paint(Color("4a3226"), 0.75, 0.35)
+	var head := CylinderMesh.new()
+	head.top_radius = 0.0035
+	head.bottom_radius = 0.0042
+	head.height = 0.003
+	head.radial_segments = 16
+	head.rings = 0
+	var nails: Array = []
+	for k in boards:
+		var z := -depth * 0.5 + board_w * 0.5 + k * (board_w + gap)
+		for end: int in [-1, 1]:
+			for off: float in [-0.035, 0.035]:
+				var jitter := Vector3(sin(k * 7.0 + end) * 0.004, 0, cos(k * 5.0 + off * 50.0) * 0.006)
+				nails.append(Transform3D(Basis.IDENTITY, Vector3(foot.x + end * (width * 0.5 - 0.022), top + 0.0012 + (0.002 if k == 1 else 0.0),
+					foot.z + z + off) + jitter))
+	_scatter(head, nail, nails, false)
+	# A coil of rope handle on each end.
+	var rope := TorusMesh.new()
+	rope.inner_radius = 0.035
+	rope.outer_radius = 0.05
+	rope.rings = 32
+	rope.ring_segments = 12
+	for face: int in [-1, 1]:
+		var loop := _mesh(self, rope, _rope, Vector3(foot.x + face * (width * 0.5 + 0.02), top - 0.16, foot.z))
+		loop.rotation = Vector3(0, 0, PI * 0.5)
+
+
+## A ship's lantern standing on the crate: brass foot, glass chimney round a flame, brass
+## cage and cap, a ring to carry it by.
+func _build_lantern(at: Vector3) -> void:
+	var brass := _paint(Color("8a6a3a"), 0.38, 0.85)
+	var dark := _paint(Color("2a2420"), 0.55, 0.6)
+	var parts: Array = [
+		[dark, 0.0, 0.04, 0.042, 0.016], [brass, 0.016, 0.038, 0.04, 0.008],
+		[brass, 0.15, 0.022, 0.034, 0.01], [brass, 0.16, 0.008, 0.018, 0.026], [dark, 0.186, 0.006, 0.008, 0.01],
+	]
+	for part: Array in parts:
+		var c := CylinderMesh.new()
+		c.top_radius = part[2]
+		c.bottom_radius = part[3]
+		c.height = part[4]
+		c.radial_segments = 32
+		c.rings = 0
+		_mesh(self, c, part[0], at + Vector3(0, part[1] + part[4] * 0.5, 0))
+	var glass := StandardMaterial3D.new()
+	glass.albedo_color = Color(1.0, 0.9, 0.7, 0.55)
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass.roughness = 0.1
+	glass.emission_enabled = true
+	glass.emission = Color("ffb860")
+	glass.emission_energy_multiplier = 1.4
+	glass.rim_enabled = true
+	glass.rim = 0.6
+	var chimney := CylinderMesh.new()
+	chimney.top_radius = 0.026
+	chimney.bottom_radius = 0.03
+	chimney.height = 0.124
+	chimney.radial_segments = 32
+	var glass_node := _mesh(self, chimney, glass, at + Vector3(0, 0.026 + 0.062, 0))
+	glass_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var flame := SphereMesh.new()
+	flame.radius = 0.011
+	flame.height = 0.04
+	flame.radial_segments = 16
+	flame.rings = 8
+	_mesh(self, flame, _glowing(Color("ffcc70"), 2.5), at + Vector3(0, 0.075, 0)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for k in 4:
+		var angle := TAU * k / 4.0 + PI * 0.25
+		var wire := CylinderMesh.new()
+		wire.top_radius = 0.003
+		wire.bottom_radius = 0.003
+		wire.height = 0.13
+		wire.radial_segments = 8
+		_mesh(self, wire, brass, at + Vector3(cos(angle) * 0.035, 0.088, sin(angle) * 0.035))
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.018
+	ring.outer_radius = 0.022
+	ring.rings = 32
+	ring.ring_segments = 8
+	_mesh(self, ring, brass, at + Vector3(0, 0.222, 0)).rotation = Vector3(PI * 0.5, 0, 0)
 
 
 func _build_gulls() -> void:

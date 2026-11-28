@@ -3,7 +3,7 @@ shader_type spatial;
 // Grain runs along each box's longest side. Every box gets its own seed from where it sits,
 // so batched planks differ: their own tone and grain, knots on some, a split along the grain
 // on others, worn pale edges, dark end grain, grime blotches and nail holes near the ends of
-// long boards. Sizes are in metres and kept chunky enough to survive the pixel finish.
+// long boards. Sizes are in metres; finer fibres, pores and a grain relief add detail at full resolution.
 
 #include "res://menu/alley_noise.gdshaderinc"
 
@@ -90,7 +90,16 @@ void fragment() {
 		}
 	}
 
-	float tone = mix(0.62, 1.25, seed) * (0.86 + rings * 0.12 + fibres * 0.26);
+	// Full-resolution detail on top: fine fibres and pores along the grain, faded out where
+	// they'd shimmer (far off, or the box seen edge-on).
+	float fine_rate = fwidth(across) * 520.0 + fwidth(u) * 12.0;
+	float fine_fade = 1.0 - smoothstep(0.35, 1.0, fine_rate);
+	float fine = (alley_noise(vec2(u * 9.0 + bend, across * 520.0 + seed * 23.0)) - 0.5) * fine_fade;
+	float pores = smoothstep(0.72, 0.95, alley_noise(vec2(u * 60.0, across * 900.0 + seed * 7.0)))
+		* (1.0 - smoothstep(0.35, 1.0, fine_rate * 1.7));
+	// Crisp dark late-wood lines at the edge of each ring.
+	float late = smoothstep(0.82, 0.98, rings) * (1.0 - smoothstep(0.35, 1.0, fwidth(across) * 70.0));
+	float tone = mix(0.62, 1.25, seed) * (0.86 + rings * 0.12 + fibres * 0.26 + fine * 0.28 - pores * 0.12 - late * 0.1);
 	tone *= mix(1.0, 1.3, rubbed * wear);
 	tone *= mix(1.0, 0.6, end_grain);
 	tone *= 1.0 - grime * 0.45;
@@ -103,4 +112,16 @@ void fragment() {
 	ALBEDO = color;
 	ROUGHNESS = clamp(0.8 - rubbed * 0.15 + grime * 0.1 + split * 0.2, 0.4, 1.0);
 	SPECULAR = mix(0.25, 0.6, nails);
+
+	// Relief from the same grain (screen-space bump): the rings and fibres catch a lamp's
+	// sheen, splits and nail holes sink in.
+	float relief = (rings * 0.12 + fibres * 0.3 + fine * 0.35 - pores * 0.25 - late * 0.2) * 0.0012
+		- split * 0.0015 - knot * 0.0004;
+	vec3 dpdx = dFdx(VERTEX);
+	vec3 dpdy = dFdy(VERTEX);
+	vec3 r1 = cross(dpdy, NORMAL);
+	vec3 r2 = cross(NORMAL, dpdx);
+	float det = dot(dpdx, r1);
+	vec3 grad = sign(det) * (dFdx(relief) * r1 + dFdy(relief) * r2);
+	NORMAL = normalize(abs(det) * NORMAL - grad);
 }

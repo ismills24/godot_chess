@@ -2,8 +2,8 @@ shader_type spatial;
 // Natural ground and rock for the outdoor places, procedural in world space (triplanar, so it
 // works on cliffs as well as on the flat): two blotchy base tones, fine speckle, optional
 // strata running along the rock, a top layer on up-facing ground (grass, moss, dry sand), a
-// low layer below a height (wet sand, damp), and optional wind ripples for sand. Features are
-// kept chunky enough to survive the pixel finish.
+// low layer below a height (wet sand, damp), and optional wind ripples for sand. Drawn at full
+// resolution: every layer is smooth noise (no hard cells), with finer octaves fading in close up.
 
 #include "res://menu/alley_noise.gdshaderinc"
 
@@ -28,8 +28,26 @@ void vertex() {
 	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
+// Each octave turned against the last so value noise's grid never lines up.
+const mat2 TURN = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8));
+
 float fbm(vec2 p) {
-	return alley_noise(p) * 0.55 + alley_noise(p * 2.13 + 7.1) * 0.3 + alley_noise(p * 4.7 + 3.3) * 0.15;
+	float total = alley_noise(p) * 0.5;
+	p = TURN * p * 2.13 + 7.1;
+	total += alley_noise(p) * 0.26;
+	p = TURN * p * 2.07 + 3.3;
+	total += alley_noise(p) * 0.13;
+	p = TURN * p * 2.11 + 1.9;
+	total += alley_noise(p) * 0.07;
+	p = TURN * p * 2.03 + 5.7;
+	total += alley_noise(p) * 0.04;
+	return total;
+}
+
+// Grit: soft speckle at two small scales, a few centimetres and a few millimetres.
+float grit(vec3 at, vec3 w) {
+	vec2 a = at.zy * w.x + at.xz * w.y + at.xy * w.z;
+	return alley_noise(TURN * a * 24.0) * 0.6 + alley_noise(TURN * TURN * a * 71.0 + 4.0) * 0.4;
 }
 
 float tri(vec3 p, vec3 w) {
@@ -43,9 +61,12 @@ void fragment() {
 	float blotch = tri(p, w);
 	vec3 color = mix(color_a.rgb, color_b.rgb, smoothstep(0.35, 0.68, blotch));
 	// Fine grains, a hand-span across.
-	vec3 grain_at = floor(world_at * 18.0);
-	float grain = cell_hash(grain_at.xz + grain_at.y * 3.7);
-	color *= 1.0 + speckle * (grain - 0.5) * 0.5;
+	// Grit fades out with distance before it can shimmer.
+	float near = 1.0 - smoothstep(0.01, 0.04, length(fwidth(world_at)));
+	float grain = grit(world_at, w);
+	color *= 1.0 + speckle * (grain - 0.5) * mix(0.3, 0.75, near);
+	// The odd darker pebble or pit.
+	color *= 1.0 - speckle * 0.25 * smoothstep(0.72, 0.86, alley_noise(TURN * (world_at.xz + world_at.y) * 9.0 + 2.0));
 	if (strata > 0.0) {
 		float band = sin(world_at.y * 7.0 + tri(p * 2.0, w) * 4.0);
 		color *= 1.0 - strata * 0.22 * smoothstep(0.55, 0.95, band);
@@ -53,11 +74,14 @@ void fragment() {
 	}
 	if (cracks > 0.0) {
 		float split = abs(alley_noise(world_at.xz * 1.3 + tri(p * 3.0, w) * 0.8) - 0.5);
-		color *= 1.0 - cracks * 0.45 * (1.0 - smoothstep(0.0, 0.025, split));
+		float hairline = abs(alley_noise(TURN * world_at.xz * 4.1 + tri(p * 6.0, w) * 0.6) - 0.5);
+		color *= 1.0 - cracks * 0.45 * (1.0 - smoothstep(0.0, 0.018, split));
+		color *= 1.0 - cracks * 0.2 * (1.0 - smoothstep(0.0, 0.01, hairline));
 	}
 	if (ripples > 0.0) {
 		float wave = sin(world_at.x * 9.0 + world_at.z * 3.0 + blotch * 6.0);
-		color *= 1.0 + ripples * 0.08 * wave;
+		float small_wave = sin(world_at.x * 23.0 - world_at.z * 7.0 + blotch * 9.0);
+		color *= 1.0 + ripples * (0.08 * wave + 0.03 * small_wave);
 	}
 	if (top_amount > 0.0) {
 		float cover = world_normal.y + (tri(p * 1.7 + 11.0, w) - 0.5) * 0.9;

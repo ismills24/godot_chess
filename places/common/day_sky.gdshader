@@ -1,7 +1,7 @@
 shader_type sky;
 // A daytime sky: a deep zenith fading to a pale horizon, the sun's disc and glow, and two cloud
-// layers (puffy cumulus and stretched streaks of cirrus) drifting slowly. Clouds are coarse
-// enough to read through the pixel finish.
+// layers (puffy cumulus and stretched streaks of cirrus) drifting slowly. Clouds carry fine
+// octaves for crisp, billowing edges at full resolution.
 
 uniform vec3 zenith_color : source_color = vec3(0.12, 0.32, 0.72);
 uniform vec3 horizon_color : source_color = vec3(0.62, 0.78, 0.92);
@@ -31,9 +31,10 @@ float noise(vec2 p) {
 float fbm(vec2 p) {
 	float total = 0.0;
 	float amp = 0.5;
-	for (int i = 0; i < 5; i++) {
+	mat2 turn = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8));
+	for (int i = 0; i < 7; i++) {
 		total += noise(p) * amp;
-		p = p * 2.03 + vec2(1.7, 9.2);
+		p = turn * p * 2.03 + vec2(1.7, 9.2);
 		amp *= 0.5;
 	}
 	return total;
@@ -52,7 +53,7 @@ void sky() {
 		// Cumulus: lumpy, lit on their sun side.
 		vec2 c = plane * 0.55 + vec2(t, t * 0.4);
 		float puff = fbm(c);
-		float cover = smoothstep(1.0 - cumulus, 1.0 - cumulus + 0.22, puff);
+		float cover = smoothstep(1.0 - cumulus, 1.0 - cumulus + 0.16, puff);
 		float lit = clamp((puff - fbm(c + sun_dir.xz * 0.12)) * 6.0 + 0.55, 0.0, 1.0);
 		vec3 cloud = mix(cloud_shade, cloud_color, lit);
 		// Cirrus: long thin streaks.

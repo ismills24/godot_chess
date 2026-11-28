@@ -2,7 +2,7 @@ extends Node3D
 ## One scene where you walk up to someone and play them at chess. It works the same way as the
 ## inn: you walk in on foot, sit down across the board from them, they look up at you, you
 ## look down at the board and lean in over it to play, your White against their Black.
-## Rendered low-res through the menu's pixel finish.
+## Rendered at full resolution, graded like the menu's pixel finish.
 ##
 ## The world script (Stage/World, extends place_world.gd) builds the place and says where
 ## everything is: the path walked in, what you look at before setting off, where your eyes
@@ -14,7 +14,6 @@ const SharpLayer := preload("res://common/sharp_layer.gd")
 const MENU_SCENE := "res://menu/MainMenu.tscn"
 const SETTINGS_FILE := "user://menu_settings.cfg"
 const FPS_CAP := 60
-const PIXEL_LONG_EDGE := 704
 const WALK_START_DELAY := 0.6
 const WALK_SPEED := 1.25
 const STRIDE := 0.72
@@ -148,8 +147,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _frame_stage() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	var aspect := viewport_size.x / maxf(viewport_size.y, 1.0)
-	var scale_to_pixels := PIXEL_LONG_EDGE / maxf(maxf(viewport_size.x, viewport_size.y), 1.0)
-	_stage.size = Vector2i((viewport_size * scale_to_pixels).round()).max(Vector2i(2, 2))
+	# Full window resolution, to match the sharp board and pieces drawn over it.
+	_stage.size = Vector2i(viewport_size.round()).max(Vector2i(2, 2))
 	_camera.fov = maxf(_base_fov, rad_to_deg(2.0 * atan(0.75 / maxf(aspect, 0.5)))) * _zoom
 
 

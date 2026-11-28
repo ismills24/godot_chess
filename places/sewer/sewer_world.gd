@@ -10,6 +10,7 @@ extends "res://places/common/place_world.gd"
 const CRATE := preload("res://inn/props/crate.glb")
 const BUCKET := preload("res://inn/props/bucket.glb")
 const BARREL := preload("res://inn/props/barrel.glb")
+const PLANK := preload("res://places/sewer/weathered_plank.gdshader")
 
 const PORTAL := -13.2
 const LANE_HALF := 1.45
@@ -262,10 +263,10 @@ func _build_brick_wall() -> void:
 ## The rat-catcher's spot before the gate.
 func _build_camp() -> void:
 	var foot := ground_at(0, TABLE_AT.y)
-	_place_prop(CRATE, Vector3(TABLE_AT.x, foot - 0.02, TABLE_AT.y), 0.56, 0.1)
+	_hd_crate(Vector3(TABLE_AT.x, foot - 0.02, TABLE_AT.y), 0.56, 0.1, 5)
 	_place_board(Vector3(TABLE_AT.x, foot + 0.54, TABLE_AT.y), 0.0)
 	var seat := Vector3(TABLE_AT.x, ground_at(0, TABLE_AT.y - 0.66), TABLE_AT.y - 0.66)
-	_place_prop(CRATE, seat - Vector3(0, 0.02, 0), 0.46, 0.5)
+	_hd_crate(seat - Vector3(0, 0.02, 0), 0.46, 0.5, 4)
 	_seat_opponent({
 		"seat": "chair", "seat_height": 0.46, "height": 0.96, "girth": 0.95,
 		"skin": Color("b88a68"), "coat": Color("4a3a28"), "sleeves": Color("4a3a28"), "legs": Color("3a3224"),
@@ -315,3 +316,135 @@ func _build_midges() -> void:
 	node.material_override = _glowing(Color("fff0c0"), 1.5)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(node)
+
+
+## A crate whose lid is rebuilt as real bevelled planks in a procedural wood: the prop's 1k
+## texture smears across the screen in the play view, where the table crate fills the frame.
+func _hd_crate(at: Vector3, height: float, yaw: float, planks: int) -> void:
+	var crate := _place_prop(CRATE, at, height, yaw)
+	var lid: MeshInstance3D
+	for mesh: MeshInstance3D in crate.find_children("*", "MeshInstance3D", true, false):
+		if "lid" in mesh.name.to_lower():
+			lid = mesh
+	if not lid:
+		return
+	# The lid's box in the crate's own (unscaled, unrotated) frame.
+	var to_crate := crate.global_transform.affine_inverse() * lid.global_transform
+	var box := to_crate * lid.get_aabb()
+	lid.visible = false
+	var factor := crate.basis.get_scale().x
+	var size := box.size * factor
+	var top := crate.global_transform * Vector3(box.get_center().x, box.end.y, box.get_center().z)
+	var frame := Node3D.new()
+	frame.position = top
+	frame.rotation.y = yaw
+	add_child(frame)
+	# Planks run along the crate's longer side.
+	var along := size.x >= size.z
+	var length := size.x if along else size.z
+	var span := size.z if along else size.x
+	var thick := clampf(size.y, 0.018, 0.03)
+	var gap := 0.008
+	var width := (span - gap * (planks - 1)) / planks
+	var rng := RandomNumberGenerator.new()
+	rng.seed = planks * 31 + int(at.z * 100.0)
+	var wood := ShaderMaterial.new()
+	wood.shader = PLANK
+	var nail := _paint(Color("2a2420"), 0.5, 0.7)
+	var nail_mesh := CylinderMesh.new()
+	nail_mesh.top_radius = 0.0055
+	nail_mesh.bottom_radius = 0.0065
+	nail_mesh.height = 0.004
+	nail_mesh.radial_segments = 16
+	nail_mesh.rings = 0
+	var nails: Array = []
+	for k in planks:
+		var offset := -span * 0.5 + width * (k + 0.5) + gap * k
+		var plank_len := length - rng.randf_range(0.0, 0.01)
+		var lift := rng.randf_range(-0.002, 0.002)
+		var mesh := _bevel_box(Vector3(plank_len, thick, width - rng.randf_range(0.0, 0.004)), 0.004)
+		var node := _mesh(frame, mesh, wood, Vector3(0, -thick * 0.5 + lift, offset))
+		node.rotation = Vector3(rng.randf_range(-0.004, 0.004), rng.randf_range(-0.006, 0.006), 0)
+		if not along:
+			node.position = Vector3(offset, -thick * 0.5 + lift, 0)
+			node.rotation.y += PI * 0.5
+		# Two nails into the battens at each end.
+		for end: float in [-1.0, 1.0]:
+			for side: float in [-0.25, 0.25]:
+				var p := Vector3(end * (plank_len * 0.5 - 0.035), lift + 0.0015, side * width)
+				p = node.basis * p + node.position
+				nails.append(Transform3D(Basis(), p))
+	var nail_batch := MultiMesh.new()
+	nail_batch.transform_format = MultiMesh.TRANSFORM_3D
+	nail_batch.mesh = nail_mesh
+	nail_batch.instance_count = nails.size()
+	for index in nails.size():
+		nail_batch.set_instance_transform(index, nails[index])
+	var nail_node := MultiMeshInstance3D.new()
+	nail_node.multimesh = nail_batch
+	nail_node.material_override = nail
+	frame.add_child(nail_node)
+
+
+## A box of `size` with its edges chamfered by `bevel`, flat-shaded so the chamfers catch light.
+static func _bevel_box(size: Vector3, bevel: float) -> ArrayMesh:
+	var h := size * 0.5
+	var b := minf(bevel, minf(h.x, minf(h.y, h.z)) * 0.9)
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	tool.set_smooth_group(-1)
+	# corner(s, a): the corner with signs s, on the face whose normal is axis a.
+	var corner := func(s: Vector3, a: int) -> Vector3:
+		var v := Vector3(s.x * (h.x - b), s.y * (h.y - b), s.z * (h.z - b))
+		v[a] = s[a] * h[a]
+		return v
+	var add := func(points: Array) -> void:
+		var centre := Vector3.ZERO
+		for p: Vector3 in points:
+			centre += p
+		centre /= points.size()
+		for k in range(1, points.size() - 1):
+			var a: Vector3 = points[0]
+			var c1: Vector3 = points[k]
+			var c2: Vector3 = points[k + 1]
+			# Godot's front faces wind clockwise: the cross product points inward.
+			if (c1 - a).cross(c2 - a).dot(centre) > 0.0:
+				var t := c1
+				c1 = c2
+				c2 = t
+			for v: Vector3 in [a, c1, c2]:
+				tool.set_uv(Vector2(v.x, v.z))
+				tool.add_vertex(v)
+	var signs := [-1.0, 1.0]
+	# The six faces.
+	for a in 3:
+		for sa: float in signs:
+			var quad: Array = []
+			for pair: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+				var s := Vector3.ZERO
+				s[a] = sa
+				s[(a + 1) % 3] = pair.x
+				s[(a + 2) % 3] = pair.y
+				quad.append(corner.call(s, a))
+			add.call(quad)
+	# The twelve chamfers, along axis k between faces a and c.
+	for k in 3:
+		var a := (k + 1) % 3
+		var c := (k + 2) % 3
+		for sa: float in signs:
+			for sc: float in signs:
+				var s0 := Vector3.ZERO
+				s0[a] = sa
+				s0[c] = sc
+				s0[k] = -1.0
+				var s1 := s0
+				s1[k] = 1.0
+				add.call([corner.call(s0, a), corner.call(s1, a), corner.call(s1, c), corner.call(s0, c)])
+	# The eight corner facets.
+	for sx: float in signs:
+		for sy: float in signs:
+			for sz: float in signs:
+				var s := Vector3(sx, sy, sz)
+				add.call([corner.call(s, 0), corner.call(s, 1), corner.call(s, 2)])
+	tool.generate_normals()
+	return tool.commit()

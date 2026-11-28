@@ -1,8 +1,9 @@
 shader_type spatial;
 render_mode cull_disabled;
 // Leafy clumps (bushes, pine needles, ivy, palm fronds): dark in the hollows, light where the
-// leaves face the sky, broken into leaf-sized flecks that survive the pixel finish, and
-// stirring in the wind (stronger the higher above the clump's root).
+// leaves face the sky, broken into rounded leaf-shaped flecks (each leaf its own shade, its
+// edge shadowed, a vein down it), and stirring in the wind (stronger the higher above the
+// clump's root). The leaves also tilt the light a little so clumps don't read as smooth balls.
 
 #include "res://menu/alley_noise.gdshaderinc"
 
@@ -30,13 +31,52 @@ void vertex() {
 	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
 
+// Leaves as cells: the nearest of a jittered point per cell. Returns (leaf's own random,
+// distance to its centre 0..1, distance to the next leaf's edge).
+vec3 leaves(vec2 p) {
+	vec2 base = floor(p);
+	float nearest = 8.0;
+	float second = 8.0;
+	float which = 0.0;
+	for (int j = -1; j <= 1; j++) {
+		for (int i = -1; i <= 1; i++) {
+			vec2 cell = base + vec2(float(i), float(j));
+			vec2 centre = cell + vec2(cell_hash(cell), cell_hash(cell + 31.7)) * 0.8 + 0.1;
+			vec2 d = p - centre;
+			// Leaves are longer than wide, each turned its own way.
+			float turn = cell_hash(cell + 9.1) * 6.283;
+			d = mat2(vec2(cos(turn), sin(turn)), vec2(-sin(turn), cos(turn))) * d;
+			float dist = length(d * vec2(1.0, 1.7));
+			if (dist < nearest) {
+				second = nearest;
+				nearest = dist;
+				which = cell_hash(cell + 3.3);
+			} else if (dist < second) {
+				second = dist;
+			}
+		}
+	}
+	return vec3(which, nearest, second - nearest);
+}
+
 void fragment() {
-	vec3 cell = floor(world_at / leaf_size);
-	float leaf = cell_hash(cell.xz + cell.y * 5.3);
-	float clump = alley_noise(world_at.xz * 1.7 + world_at.y * 1.3);
-	float light = clamp(world_normal.y * 0.45 + 0.4 + (leaf - 0.5) * 0.55 + (clump - 0.5) * 0.4, 0.0, 1.0);
+	vec3 w = abs(world_normal);
+	vec2 p = (w.y > 0.6 ? world_at.xz : (w.x > w.z ? world_at.zy : world_at.xy)) / leaf_size;
+	p += world_at.y * vec2(0.37, 0.21) / leaf_size;
+	vec3 cell = leaves(p);
+	float leaf = cell.x;
+	float clump = alley_noise(world_at.xz * 1.7 + world_at.y * 1.3) * 0.7 + alley_noise(world_at.xz * 5.3 - world_at.y * 3.1) * 0.3;
+	// Each leaf lit across its face, darker toward its edges and where leaves overlap.
+	float edge = smoothstep(0.0, 0.12, cell.z);
+	float light = clamp(world_normal.y * 0.45 + 0.4 + (leaf - 0.5) * 0.5 + (clump - 0.5) * 0.4 - cell.y * 0.18, 0.0, 1.0);
+	light *= 0.72 + 0.28 * edge;
 	vec3 color = mix(dark_color.rgb, light_color.rgb, light);
 	color = mix(color, tip_color.rgb, tips * smoothstep(0.75, 1.0, UV.x) * (0.6 + 0.4 * leaf));
+	// Fine flecks fade out at distance.
+	float near = 1.0 - smoothstep(0.15, 0.6, length(fwidth(p)));
+	color *= mix(1.0, 0.9 + 0.2 * alley_noise(p * 3.7), near);
+	vec3 tilt = vec3(cell_hash(vec2(leaf, 1.0)) - 0.5, 0.0, cell_hash(vec2(leaf, 2.0)) - 0.5) * 0.6 * near;
+	NORMAL = normalize(NORMAL + (VIEW_MATRIX * vec4(tilt, 0.0)).xyz);
 	ALBEDO = color;
 	ROUGHNESS = 0.85;
 	BACKLIGHT = light_color.rgb * 0.25;

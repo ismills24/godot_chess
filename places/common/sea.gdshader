@@ -18,6 +18,20 @@ uniform float swell_period = 7.0;
 varying vec3 world_at;
 varying float out_dist;
 
+// Noise turned off the grid (value noise alone has square contours), in octaves.
+const mat2 TURN = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8));
+
+float wavy(vec2 p) {
+	return alley_noise(TURN * p) * 0.55 + alley_noise(TURN * TURN * p * 2.1 + 5.2) * 0.3 + alley_noise(TURN * p * 4.3 + 1.7) * 0.15;
+}
+
+// Small wind ripples on the surface, for the light to glint off.
+float chop(vec2 p, float t) {
+	return alley_noise(TURN * p * 3.0 + vec2(t * 0.6, t * 0.2)) * 0.5
+		+ alley_noise(TURN * TURN * p * 7.0 - vec2(t * 0.9, -t * 0.4)) * 0.3
+		+ alley_noise(TURN * p * 17.0 + vec2(t * 1.3, t * 0.7)) * 0.2;
+}
+
 float shore(float z) {
 	return shore_x + shore_wave * sin(z * shore_freq) + 0.4 * sin(z * 0.61 + 1.3);
 }
@@ -32,8 +46,9 @@ void vertex() {
 
 void fragment() {
 	float x = world_at.x - shore(world_at.z);
-	float ripple = alley_noise(world_at.xz * vec2(0.9, 0.35) + vec2(elapsed * 0.25, 0.0)) * 0.6
-		+ alley_noise(world_at.xz * vec2(2.6, 1.1) - vec2(elapsed * 0.4, elapsed * 0.1)) * 0.4;
+	float ripple = wavy(world_at.xz * vec2(0.9, 0.35) + vec2(elapsed * 0.25, 0.0)) * 0.6
+		+ wavy(world_at.xz * vec2(2.6, 1.1) - vec2(elapsed * 0.4, elapsed * 0.1)) * 0.4;
+	float lace = wavy(world_at.xz * 6.0 + vec2(elapsed * 0.3, 0.0));
 	vec3 color = mix(shallow_color.rgb, mid_color.rgb, smoothstep(1.0, 14.0, x + ripple * 3.0));
 	color = mix(color, deep_color.rgb, smoothstep(14.0, 120.0, x));
 	// Rollers: each comes in from out at sea, crests as a white line and breaks near the beach.
@@ -45,14 +60,22 @@ void fragment() {
 		float d = x - crest - wobble;
 		float line = 1.0 - smoothstep(0.0, mix(0.4, 1.6, phase), abs(d + 0.3));
 		float behind = smoothstep(0.0, 2.5, d) * (1.0 - smoothstep(2.5, 6.0, d)) * phase;
-		float broken = step(0.35, ripple + 0.3 * phase);
-		foam = max(foam, line * mix(0.35, 1.0, phase) * broken + behind * 0.35 * step(0.55, ripple));
+		float broken = smoothstep(0.3, 0.42, ripple + 0.3 * phase + (lace - 0.5) * 0.2);
+		foam = max(foam, line * mix(0.35, 1.0, phase) * broken + behind * 0.35 * smoothstep(0.5, 0.6, ripple + (lace - 0.5) * 0.25));
 	}
 	// The wash on the shallows: lacy foam right at the edge.
 	float edge = 1.0 - smoothstep(0.0, 1.4, x);
-	foam = max(foam, edge * step(0.42, ripple + 0.25 * sin(elapsed * 1.1 + world_at.z)));
+	foam = max(foam, edge * smoothstep(0.38, 0.46, ripple + 0.25 * sin(elapsed * 1.1 + world_at.z) + (lace - 0.5) * 0.3));
 	color = mix(color, foam_color.rgb, clamp(foam, 0.0, 1.0));
 	ALBEDO = color;
+	// Ripples tilt the surface; they fade out far away, where they'd only shimmer.
+	float near = 1.0 - smoothstep(0.05, 0.4, length(fwidth(world_at.xz)));
+	vec2 q = world_at.xz;
+	float e = 0.02;
+	float c0 = chop(q, elapsed);
+	vec2 slope = vec2(chop(q + vec2(e, 0.0), elapsed) - c0, chop(q + vec2(0.0, e), elapsed) - c0) / e;
+	vec3 bent = normalize(vec3(-slope.x * 0.06 * near, 1.0, -slope.y * 0.06 * near));
+	NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz);
 	ROUGHNESS = mix(0.08, 0.6, foam);
 	SPECULAR = 0.6;
 	ALPHA = smoothstep(-0.6, 0.6, x + 0.4 * sin(elapsed * 0.8 + world_at.z * 0.4));

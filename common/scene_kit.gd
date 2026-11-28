@@ -134,7 +134,7 @@ func _cylinder(parent: Node3D, at: Vector3, foot: float, top: float, height: flo
 	cylinder.bottom_radius = foot
 	cylinder.top_radius = top
 	cylinder.height = height
-	cylinder.radial_segments = 10
+	cylinder.radial_segments = clampi(int(maxf(foot, top) * 160.0), 16, 56)
 	cylinder.rings = 0
 	_mesh(parent, cylinder, material, at)
 

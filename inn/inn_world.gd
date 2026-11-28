@@ -11,6 +11,8 @@ const STONE_FLOOR := preload("res://inn/stone_floor.gdshader")
 const COBWEB := preload("res://inn/cobweb.gdshader")
 const ALE_STAIN := preload("res://inn/ale_stain.gdshader")
 const HALO := preload("res://inn/halo.gdshader")
+const MUG_STAVES := preload("res://inn/mug_staves.gdshader")
+const FOAM := preload("res://inn/foam.gdshader")
 const BENCH := preload("res://inn/props/bench.glb")
 const WINE_BARREL := preload("res://inn/props/wine_barrel.glb")
 const BARREL := preload("res://inn/props/barrel.glb")
@@ -185,6 +187,7 @@ var _clay: Array[Material] = [
 	_paint(Color("a89878"), 0.5),
 ]
 var _foam := _paint(Color("d8c8a0"), 0.9)
+var _mug_handle_wood := _paint(Color("40281a"), 0.7)
 var _candle_flame := _glowing(Color("ffd27a"), 7.0)
 
 
@@ -525,7 +528,12 @@ func _build_bar() -> void:
 	# Counter along the right wall, its open end toward the fireplace.
 	var counter := _wood(Color("3a2416"))
 	_box(_timber, Vector3(BAR_X + 0.03, 0.52, -4.8), Vector3(0.45, 1.04, 5.6))
-	_box(counter, Vector3(BAR_X, 1.07, -4.8), Vector3(0.62, 0.07, 5.8))
+	# The top: three long planks with hairline gaps, each its own tone and grain, on a dark
+	# bed that shows in the joints.
+	_box(_timber, Vector3(BAR_X, 1.064, -4.8), Vector3(0.6, 0.056, 5.78))
+	for plank in 3:
+		_box(counter, Vector3(BAR_X - 0.206 + plank * 0.206, 1.07, -4.8 + 0.017 * (plank - 1) + 0.006),
+			Vector3(0.203, 0.07 - 0.002 * (plank % 2), 5.8))
 	for panel in 7:
 		_box(_old_timber, Vector3(BAR_X - 0.2, 0.52, -2.3 - panel * 0.83), Vector3(0.04, 0.8, 0.06))
 	_box(_iron, Vector3(BAR_X - 0.26, 0.12, -4.8), Vector3(0.05, 0.05, 5.6))
@@ -797,10 +805,19 @@ static func _label_material() -> StandardMaterial3D:
 			var mark: String = ART[y][x]
 			art.set_pixel(x, y, Color("2a1a10") if mark == "#" else (Color("6a1a14") if mark == "R" else Color("b8a47c")))
 	var material := StandardMaterial3D.new()
-	material.albedo_texture = ImageTexture.create_from_image(art)
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	material.albedo_texture = _crisp_texture(art, 16)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	material.roughness = 0.95
 	return material
+
+
+## A tiny pixel image blown up `factor` times with hard edges and given mipmaps, so it stays
+## sharp up close and smooth (not shimmering) further off at full resolution.
+static func _crisp_texture(image: Image, factor: int) -> ImageTexture:
+	var big := image.duplicate() as Image
+	big.resize(image.get_width() * factor, image.get_height() * factor, Image.INTERPOLATE_NEAREST)
+	big.generate_mipmaps()
+	return ImageTexture.create_from_image(big)
 
 
 static func _checker_material() -> StandardMaterial3D:
@@ -809,8 +826,8 @@ static func _checker_material() -> StandardMaterial3D:
 		for rank in 8:
 			checks.set_pixel(file, rank, Color("b48c5e") if (file + rank) % 2 == 0 else Color("4a3021"))
 	var material := StandardMaterial3D.new()
-	material.albedo_texture = ImageTexture.create_from_image(checks)
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	material.albedo_texture = _crisp_texture(checks, 32)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	material.roughness = 0.55
 	return material
 
@@ -1092,22 +1109,122 @@ func _wooden_mug(at: Vector3, yaw: float, full: bool, size := 1.0) -> void:
 func _mug_parts(parent: Node3D, at: Vector3, yaw: float, full: bool, size: float, movable: bool) -> void:
 	var radius := 0.045 * size
 	var tall := 0.13 * size
-	_cylinder(parent, at + Vector3(0, tall * 0.5, 0), radius, radius * 0.9, tall, _mug_wood)
+	var body := CylinderMesh.new()
+	body.bottom_radius = radius
+	body.top_radius = radius * 0.9
+	body.height = tall
+	body.radial_segments = 48
+	body.rings = 0
+	var shown := _mesh(parent, body, _mug_staves(size), at + Vector3(0, tall * 0.5, 0))
+	# Turn the staves per mug so no two line up the same.
+	shown.rotation.y = yaw * 1.7
 	for hoop: float in [0.025 * size, tall - 0.025 * size]:
 		var girth := radius * 1.04 - hoop * 0.03
 		_cylinder(parent, at + Vector3(0, hoop, 0), girth, girth, 0.012 * size, _iron)
-	var out := Vector3(sin(yaw), 0, cos(yaw))
-	var grip := Vector3(0, tall * 0.55, 0)
-	var parts: Array = [[at + out * (radius + 0.025 * size) + grip, Vector3(0.016, 0.08, 0.016) * size]]
-	for end: float in [0.03, -0.03]:
-		parts.append([at + out * (radius + 0.012 * size) + grip + Vector3(0, end * size, 0), Vector3(0.016, 0.014, 0.03) * size])
-	for part: Array in parts:
-		if movable:
-			_box_mesh(parent, _mug_wood, part[0], part[1]).rotation.y = yaw
-		else:
-			_box(_mug_wood, part[0], part[1], Vector3(0, yaw, 0))
+	# A bent wooden handle: a rounded C from below the top hoop to above the bottom one.
+	var handle := _mesh(parent, _mug_handle(size), _mug_handle_wood, at)
+	handle.rotation.y = yaw
 	if full:
-		_cylinder(parent, at + Vector3(0, tall + 0.006 * size, 0), radius * 0.92, radius * 0.85, 0.016 * size, _foam)
+		var head := CylinderMesh.new()
+		head.bottom_radius = radius * 0.92
+		head.top_radius = radius * 0.85
+		head.height = 0.016 * size
+		head.radial_segments = 48
+		head.rings = 1
+		_mesh(parent, head, _foam_material(), at + Vector3(0, tall + 0.006 * size, 0))
+		# The head heaped a little higher in the middle.
+		var dome := SphereMesh.new()
+		dome.radius = radius * 0.84
+		dome.height = 0.02 * size
+		dome.is_hemisphere = true
+		dome.radial_segments = 48
+		dome.rings = 8
+		_mesh(parent, dome, _foam_material(), at + Vector3(0, tall + 0.0135 * size, 0))
+
+
+var _mug_staves_by_size := {}
+var _mug_handles_by_size := {}
+var _foam_shader_material: ShaderMaterial
+
+
+## Stave-built mug wood for a mug of `size` (the shader needs its cap radius and height).
+func _mug_staves(size: float) -> ShaderMaterial:
+	if not _mug_staves_by_size.has(size):
+		var material := ShaderMaterial.new()
+		material.shader = MUG_STAVES
+		material.set_shader_parameter("wood_color", Color("5a3a22"))
+		material.set_shader_parameter("top_radius", 0.045 * size * 0.9)
+		material.set_shader_parameter("wall", 0.0055 * size)
+		material.set_shader_parameter("height", 0.13 * size)
+		material.set_shader_parameter("staves", 12.0 + size)
+		_mug_staves_by_size[size] = material
+	return _mug_staves_by_size[size]
+
+
+func _foam_material() -> ShaderMaterial:
+	if not _foam_shader_material:
+		_foam_shader_material = ShaderMaterial.new()
+		_foam_shader_material.shader = FOAM
+		_foam_shader_material.set_shader_parameter("foam_color", Color("d8c8a0"))
+	return _foam_shader_material
+
+
+## A mug handle for a mug of `size`, standing on the origin and bowing out along +z: a tube
+## of rounded-oblong section swept round a C, its ends sunk into the mug's wall.
+func _mug_handle(size: float) -> ArrayMesh:
+	if _mug_handles_by_size.has(size):
+		return _mug_handles_by_size[size]
+	const ALONG := 24
+	const AROUND := 12
+	var radius := 0.045 * size
+	var tall := 0.13 * size
+	var centre := Vector3(0, tall * 0.53, radius - 0.004 * size)
+	var reach := 0.034 * size
+	var drop := 0.042 * size
+	var wide := 0.009 * size
+	var thick := 0.0065 * size
+	var tool := SurfaceTool.new()
+	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings: Array = []
+	for i in ALONG + 1:
+		var t := PI * i / ALONG
+		# A C bowed out along +z, a little fuller at the top where the thumb rests.
+		var swell := 1.0 + 0.12 * cos(t)
+		var spine := centre + Vector3(0, drop * cos(t) * swell, reach * sin(t))
+		var tangent := Vector3(0, -drop * sin(t) * swell, reach * cos(t)).normalized()
+		var side := Vector3.RIGHT
+		var normal := tangent.cross(side).normalized()
+		var ring: Array = []
+		for k in AROUND:
+			var a := TAU * k / AROUND
+			ring.append(spine + side * cos(a) * wide + normal * sin(a) * thick)
+		rings.append(ring)
+	for i in ALONG:
+		for k in AROUND:
+			var k2 := (k + 1) % AROUND
+			var a: Vector3 = rings[i][k]
+			var b: Vector3 = rings[i + 1][k]
+			var c: Vector3 = rings[i + 1][k2]
+			var d: Vector3 = rings[i][k2]
+			tool.set_uv(Vector2(float(k) / AROUND, float(i) / ALONG))
+			for v: Vector3 in [a, c, b, a, d, c]:
+				tool.add_vertex(v)
+	tool.generate_normals()
+	var mesh := tool.commit()
+	_mug_handles_by_size[size] = mesh
+	return mesh
+
+
+## Round parts at full resolution: enough sides that a mug or a crock reads round, scaled by
+## its size so the many small bottles stay cheap.
+func _cylinder(parent: Node3D, at: Vector3, foot: float, top: float, height: float, material: Material) -> void:
+	var cylinder := CylinderMesh.new()
+	cylinder.bottom_radius = foot
+	cylinder.top_radius = top
+	cylinder.height = height
+	cylinder.radial_segments = clampi(int(maxf(foot, top) * 500.0), 16, 56)
+	cylinder.rings = 0
+	_mesh(parent, cylinder, material, at)
 
 
 ## A candle stub in an iron dish on a table top (`at` is on the top). Lit ones get a flame

@@ -6,6 +6,8 @@ extends "res://places/common/place_world.gd"
 ## Space: the street runs toward -Z; the gate's face is at z = GATE_FRONT, x across it.
 
 const FLAG := preload("res://places/town_gate/flag.gdshader")
+const PAVING := preload("res://places/town_gate/paving.gdshader")
+const TABLE_WOOD := preload("res://places/town_gate/table_wood.gdshader")
 const ROUND_TABLE := preload("res://inn/props/round_table.glb")
 const STOOL := preload("res://inn/props/stool.glb")
 const BARREL := preload("res://inn/props/barrel.glb")
@@ -28,10 +30,12 @@ var _sandstone := _ashlar({"stone_color": Color("9a4c36"), "stone_color_b": Colo
 	"mortar_color": Color("6a4a3e"), "block_size": Vector2(0.62, 0.3), "streaks": 0.5})
 var _sandstone_dressed := _ashlar({"stone_color": Color("a85a40"), "stone_color_b": Color("8a4430"),
 	"mortar_color": Color("6a4a3e"), "block_size": Vector2(0.9, 0.3), "streaks": 0.3})
-var _setts := _ashlar({"stone_color": Color("5a5550"), "stone_color_b": Color("45403c"),
-	"mortar_color": Color("2e2a27"), "block_size": Vector2(0.26, 0.2), "joint": 0.02, "streaks": 0.0})
-var _pavers := _ashlar({"stone_color": Color("8a7468"), "stone_color_b": Color("6e5a50"),
-	"mortar_color": Color("4a3e38"), "block_size": Vector2(0.34, 0.2), "joint": 0.012, "streaks": 0.0})
+var _setts := _paving({"stone_color": Color("5e5953"), "stone_color_b": Color("45403c"),
+	"joint_color": Color("2e2a27"), "unit_size": Vector2(0.2, 0.14), "joint": 0.012, "irregular": 1.0,
+	"dome": 1.0, "roughness_value": 0.8})
+var _pavers := _paving({"stone_color": Color("957666"), "stone_color_b": Color("62564f"),
+	"joint_color": Color("4a3e38"), "unit_size": Vector2(0.21, 0.105), "joint": 0.005, "dome": 0.2,
+	"tone_spread": 1.4})
 var _kerb := _ashlar({"stone_color": Color("8a8580"), "stone_color_b": Color("77726c"),
 	"mortar_color": Color("4a4644"), "block_size": Vector2(0.9, 0.3), "streaks": 0.0})
 var _plaster_blue := _plaster(Color("9cb8c2"))
@@ -194,6 +198,20 @@ func _window(at: Vector3) -> void:
 		_box(_sandstone_dressed, at + Vector3(side * (width * 0.5 + 0.2), height + 0.05, 0.12), Vector3(0.1, 0.3, 0.16))
 
 
+func _paving(params: Dictionary) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = PAVING
+	for key: String in params:
+		material.set_shader_parameter(key, params[key])
+	return material
+
+
+## Every mesh under `prop` drawn with `material` instead of its own.
+static func _reclad(prop: Node3D, material: Material) -> void:
+	for mesh: MeshInstance3D in prop.find_children("*", "MeshInstance3D", true, false):
+		mesh.material_override = material
+
+
 func _plaster(color: Color) -> ShaderMaterial:
 	return _terrain_material({"color_a": color, "color_b": color.darkened(0.12), "scale": 1.4,
 		"speckle": 0.35, "top_color": color.darkened(0.25), "top_amount": 0.0, "low_color": color.darkened(0.3),
@@ -317,7 +335,9 @@ func _build_beyond() -> void:
 ## The guard's table: a round table set out on the pavement before the gate, two stools, his
 ## halberd leaning on the wall and a pitcher.
 func _build_table() -> void:
-	_place_prop(ROUND_TABLE, TABLE_AT + Vector3(0, 0.06, 0), TABLE_HEIGHT, 0.3)
+	var oak := ShaderMaterial.new()
+	oak.shader = TABLE_WOOD
+	_reclad(_place_prop(ROUND_TABLE, TABLE_AT + Vector3(0, 0.06, 0), TABLE_HEIGHT, 0.3), oak)
 	var surface := TABLE_AT + Vector3(0, 0.06 + TABLE_HEIGHT, 0)
 	_place_board(surface, 0.0)
 	_place_prop(STOOL, Vector3(TABLE_AT.x, 0.06, TABLE_AT.z - 0.68), 0.46, 0.2)

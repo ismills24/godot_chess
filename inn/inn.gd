@@ -4,7 +4,7 @@ extends Node3D
 ## bartender brings the board along behind the counter and sets it down in front of you; you
 ## watch him do it, hold his eye a moment, then look down at the board and lean in over it to
 ## play him: a game of chess on the counter, your White against his Black. Crossing the threshold, the street's cold night
-## gives way to the bar room's warm haze. Rendered low-res through the menu's pixel finish.
+## gives way to the bar room's warm haze. Rendered at full resolution, graded like the menu's pixel finish.
 
 const InnWorld := preload("res://inn/inn_world.gd")
 const Bartender := preload("res://inn/bartender.gd")
@@ -14,7 +14,6 @@ const SharpLayer := preload("res://common/sharp_layer.gd")
 const MENU_SCENE := "res://menu/MainMenu.tscn"
 const SETTINGS_FILE := "user://menu_settings.cfg"
 const FPS_CAP := 60
-const PIXEL_LONG_EDGE := 704
 ## The walk in, on the floor (x, z): across the street to the door, inside, down the lane
 ## between the long table and the bar, to the stool.
 const WALK_PATH: Array[Vector2] = [
@@ -232,8 +231,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _frame_stage() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	var aspect := viewport_size.x / maxf(viewport_size.y, 1.0)
-	var scale_to_pixels := PIXEL_LONG_EDGE / maxf(maxf(viewport_size.x, viewport_size.y), 1.0)
-	_stage.size = Vector2i((viewport_size * scale_to_pixels).round()).max(Vector2i(2, 2))
+	# Full window resolution, to match the sharp board and pieces drawn over it.
+	_stage.size = Vector2i(viewport_size.round()).max(Vector2i(2, 2))
 	_camera.fov = maxf(_base_fov, rad_to_deg(2.0 * atan(0.75 / maxf(aspect, 0.5)))) * _zoom
 
 

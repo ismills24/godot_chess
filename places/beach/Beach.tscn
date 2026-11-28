@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://places/common/place.gd" id="1_place"]
 [ext_resource type="Script" path="res://places/beach/beach_world.gd" id="2_world"]
-[ext_resource type="Shader" path="res://menu/pixel_finish.gdshader" id="3_pixel"]
+[ext_resource type="Shader" path="res://common/scene_finish.gdshader" id="3_pixel"]
 [ext_resource type="Shader" path="res://places/common/day_sky.gdshader" id="4_sky"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
@@ -45,7 +45,7 @@ adjustment_contrast = 1.06
 adjustment_saturation = 1.12
 fog_light_color = Color(0.7, 0.82, 0.92, 1)
 fog_density = 0.0035
-ambient_light_color = Color(0.6, 0.75, 0.9, 1)
+ambient_light_color = Color(0.68, 0.76, 0.86, 1)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_pixel"]
 resource_local_to_scene = true
@@ -59,8 +59,10 @@ script = ExtResource("1_place")
 
 [node name="Stage" type="SubViewport" parent="."]
 own_world_3d = true
+msaa_3d = 2
+positional_shadow_atlas_size = 8192
 gui_disable_input = true
-size = Vector2i(704, 396)
+size = Vector2i(1600, 900)
 render_target_update_mode = 4
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="Stage"]
