@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using RogueChess.Engine.AI;
 using RogueChess.Engine.Content;
+using RogueChess.Engine.Content.BoardEffects;
 using RogueChess.Engine.Core;
 using RogueChess.Engine.Encounters;
 using RogueChess.Engine.Notation;
@@ -21,6 +24,11 @@ public sealed record BattleParameters
     public ArmySpec Enemy { get; init; } = new() { PieceValue = 8 };
     public AgentProfile Ai { get; init; } = AgentProfile.Casual with { TimeBudgetMs = 0 };
     public bool AllowUndo { get; init; } = true;
+    /// <summary>Board effects active for the whole battle, in the map format
+    /// (<c>{ "id", "name", "condition": {...}, "effect": { "type", "params" } }</c>), e.g. the bartender's beer spill.
+    /// Left out of the JSON when absent, so runs without effects keep their hashes.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<JsonElement>? BoardEffects { get; init; }
 }
 public sealed class BattleState
 {
@@ -67,6 +75,8 @@ public sealed class BattleHandler : IEncounterHandler
             || ai.TableBits < 8 || ai.TableBits > 20 || ai.QuiescenceDepth < 0 || ai.QuiescenceDepth > 12)
             throw new FormatException("AI requires bounded deterministic work limits.");
         _ = new AgentFactory().Create(ai);
+        try { _ = CreateBoardEffects(_catalog, parameters); }
+        catch (Exception e) when (e is not FormatException) { throw new FormatException($"Invalid board effect: {e.Message}", e); }
         parameters = parameters with { Ai = ai };
         var resolved = definition with { Parameters = RunJson.Data(parameters) };
         // Validate a FEN before a run can start. Every board, scene or not, is at most 10x10.
@@ -86,6 +96,7 @@ public sealed class BattleHandler : IEncounterHandler
             EncounterGenerator.GenerateArmy(p.Player, _catalog, RunRandom.Derive(seed, "player")),
             EncounterGenerator.GenerateArmy(p.Enemy, _catalog, RunRandom.Derive(seed, "enemy")),
             p.Width, p.Height, RunRandom.Derive(seed, "placement"), rules);
+        foreach (var (def, vars) in CreateBoardEffects(_catalog, p)) state.AddGlobal(def, vars);
         state.SeedRandom(RunRandom.Derive(seed, "battle"));
         Game.BeginGame(state);
         state.ClearHistory();
@@ -94,6 +105,7 @@ public sealed class BattleHandler : IEncounterHandler
     public void Enter(EncounterContext context)
     {
         var battle = context.Encounter.Data.As<BattleState>("battle");
+        CreateBoardEffects(_catalog, RunJson.Decode<BattleParameters>(context.Encounter.Definition.Parameters));
         var board = GameState.Restore(battle.Position, _catalog);
         Advance(context, board);
         battle.Position = board.Capture();
@@ -102,8 +114,9 @@ public sealed class BattleHandler : IEncounterHandler
     public void Execute(EncounterContext context, RunCommand command)
     {
         var battle = context.Encounter.Data.As<BattleState>("battle");
-        var board = GameState.Restore(battle.Position, _catalog);
         var parameters = RunJson.Decode<BattleParameters>(context.Encounter.Definition.Parameters);
+        CreateBoardEffects(_catalog, parameters);
+        var board = GameState.Restore(battle.Position, _catalog);
         switch (command.Type)
         {
             case "battle.move":
@@ -132,6 +145,22 @@ public sealed class BattleHandler : IEncounterHandler
         }
         battle.Position = board.Capture();
         context.Encounter.Data = StatePayload.From("battle", battle);
+    }
+    /// <summary>Build the battle's board effects and register them in <paramref name="catalog"/> so saved positions
+    /// that hold them can be restored. Effect ids are derived from their condition and effect, so this is stable.</summary>
+    public static List<(GlobalDef Def, int[] Vars)> CreateBoardEffects(Catalog catalog, BattleParameters parameters)
+    {
+        var effects = new List<(GlobalDef, int[])>();
+        foreach (var entry in parameters.BoardEffects ?? new())
+        {
+            string type = entry.TryGetProperty("effect", out var effect) && effect.TryGetProperty("type", out var t)
+                ? t.GetString() ?? "" : "";
+            var factory = catalog.FindBoardEffect(type) ?? throw new FormatException($"Unknown board effect '{type}'.");
+            var (def, vars) = factory(entry);
+            if (catalog.FindGlobal(def.Id) == null) catalog.AddGlobal(def);
+            effects.Add((catalog.FindGlobal(def.Id)!, vars));
+        }
+        return effects;
     }
     private void Advance(EncounterContext context, GameState board)
     {

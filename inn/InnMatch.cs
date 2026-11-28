@@ -49,7 +49,14 @@ public partial class InnMatch : Node
         Width = 6, Height = 6,
         Player = new() { PieceValue = 10, MinimumPawns = 2, StartingAbilities = new[] { "exploding", "phantom", "predator" } },
         Enemy = new() { PieceValue = 8, MinimumPawns = 2, AbilityValue = 2 },
+        BoardEffects = new() { System.Text.Json.JsonDocument.Parse(BeerSpill).RootElement.Clone() },
     };
+    /// <summary>The bartender's beer spill (same as the inn encounter in run/prototype.json).</summary>
+    private const string BeerSpill = """
+        { "id": "beer-spill", "name": "Beer spill",
+          "condition": { "type": "TurnInterval", "params": { "interval": 6, "startTurn": 2 } },
+          "effect": { "type": "RandomTiles", "params": { "count": 3, "includeOccupied": true, "tile": "slippery", "duration": 4, "cause": "beer-spill" } } }
+        """;
 
     /// <summary>The preview's battle, at the size `-- --board=WxH` asks for (up to 10x10).</summary>
     private static BattleParameters PreviewBoard()
@@ -85,6 +92,8 @@ public partial class InnMatch : Node
             });
             _session.Execute(RunCommand.Create("world.move", new WorldMove(1, 1)));
         }
+        // Saved positions name the encounter's board effects (e.g. the beer spill); register them before restoring.
+        BattleHandler.CreateBoardEffects(_catalog, RunJson.Decode<BattleParameters>(Encounter().Definition.Parameters));
         _autoplay = autoplay;
         _finished = false;
         _returnAfter = false;

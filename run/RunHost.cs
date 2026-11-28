@@ -396,7 +396,9 @@ public partial class RunHost : Control
             var encounter = state.Encounters.FirstOrDefault(e => e.Definition.Id == encounterId);
             if (encounter?.Data.Kind == "battle")
             {
-                var board = new BoardView3D { State = GameState.Restore(encounter.Data.As<BattleState>("battle").Position, ContentLibrary.CreateCatalog()),
+                var catalog = ContentLibrary.CreateCatalog();
+                BattleHandler.CreateBoardEffects(catalog, RunJson.Decode<BattleParameters>(encounter.Definition.Parameters));
+                var board = new BoardView3D { State = GameState.Restore(encounter.Data.As<BattleState>("battle").Position, catalog),
                     SizeFlagsHorizontal = SizeFlags.ExpandFill };
                 data.AddChild(board);
                 board.CustomMinimumSize = new Vector2(600, 450);

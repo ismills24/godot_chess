@@ -20,7 +20,13 @@
           "id": "bartender", "name": "Bartender",
           "maxDepth": 2, "nodeBudget": 60000, "timeBudgetMs": 0,
           "quiescenceDepth": 4, "choiceMargin": 60, "rootNoise": 30, "blunderChance": 0.05
-        }
+        },
+        "boardEffects": [
+          { "id": "beer-spill", "name": "Beer spill",
+            "description": "The bartender spills beer on 3 random squares every 6 turns; it stays slippery for 4 turns.",
+            "condition": { "type": "TurnInterval", "params": { "interval": 6, "startTurn": 2 } },
+            "effect": { "type": "RandomTiles", "params": { "count": 3, "includeOccupied": true, "tile": "slippery", "duration": 4, "cause": "beer-spill" } } }
+        ]
       }
     },
     {
