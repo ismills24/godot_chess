@@ -10,6 +10,8 @@ extends "res://common/scene_kit.gd"
 ## A set can also be played on: `show_pieces` moves each piece to where the game has it,
 ## `mark` lights the chosen piece and where it can go, `show_tiles` marks special squares,
 ## and `square_index_at` reads a square off a point on the board.
+## Beer: `spill_beer` throws beer onto squares and leaves a puddle on each, `dry_beer` dries them
+## off again (common/beer_spill.gd). Slippery squares passed to `show_tiles` are shown this way.
 
 ## The width of a square on an 8x8 board; the longer side of any board spans 8 of these.
 const SQUARE := 0.055
@@ -27,6 +29,9 @@ const WOOD_SQUARE := 1.45
 ## Roughly how tall each kind stands, in squares (pawn, knight, bishop, rook, queen, king);
 ## ability tags float just above.
 const PIECE_HEIGHTS := [0.8, 1.0, 1.05, 0.85, 1.2, 1.35]
+const BEER_SPILL := preload("res://common/beer_spill.gd")
+## The tile shown as a beer puddle instead of a tint and a name.
+const BEER_TILE := "slippery"
 
 ## The pieces' finish (wood_hd_piece.gd's `style`: wood, grain, plastic, cel, marble, metal,
 ## porcelain). Set before building.
@@ -54,6 +59,11 @@ var _taken := [0, 0]
 var _marks: Node3D
 ## Markers on special squares (walls, fire...), rebuilt by show_tiles.
 var _tiles: Node3D
+## Beer puddles on the board (common/beer_spill.gd), made by build.
+var _beer: Node3D
+## Whether show_tiles has run since the board was built: the first call puts any Slippery
+## squares' puddles straight down, later ones spill the new ones in.
+var _tiles_shown := false
 ## Visual layers for the pieces, board and marks (see set_play_layers).
 var _piece_layers := 1
 ## The board's own meshes: the playing surface and the frame.
@@ -77,11 +87,13 @@ func resize(new_files: int, new_ranks: int) -> void:
 	for mesh in _board_meshes:
 		mesh.queue_free()
 	_board_meshes.clear()
-	for node in [_marks, _tiles]:
+	for node in [_marks, _tiles, _beer]:
 		if node:
 			node.queue_free()
 	_marks = null
 	_tiles = null
+	_beer = null
+	_tiles_shown = false
 	_live.clear()
 	_taken = [0, 0]
 	configure(new_files, new_ranks)
@@ -104,6 +116,13 @@ func build(placement := START, captured := "") -> void:
 	add_child(_marks)
 	_tiles = Node3D.new()
 	add_child(_tiles)
+	_beer = BEER_SPILL.new()
+	_beer.name = "Beer"
+	_beer.square_size = square
+	# Under the pieces' contact shadows (about 0.0005 up) and the move marks.
+	_beer.lift = 0.0003
+	_beer.layers = _piece_layers
+	add_child(_beer)
 	var rows := placement.split("/") if placement != "" else PackedStringArray()
 	for row in rows.size():
 		var rank := ranks - 1 - row
@@ -181,14 +200,20 @@ func show_pieces(pieces: Array, animate := true) -> void:
 			_slide(holder, _taken_spot(holder.get_meta("symbol")), true, animate)
 
 
-## Marks the special squares: `tiles` holds {square, name, color}. Each gets a tint over the
-## square with its name written on it.
+## Marks the special squares: `tiles` holds {square, name, color} and optionally `id` (the
+## tile's id). Each gets a tint over the square with its name written on it, except Slippery
+## squares (id "slippery"), which get a beer puddle instead: squares that turned slippery since
+## the last call get beer spilled on them, and puddles whose square isn't slippery any more dry off.
 func show_tiles(tiles: Array) -> void:
 	if not _tiles:
 		return
 	for child in _tiles.get_children():
 		child.queue_free()
+	var beer := {}
 	for entry: Dictionary in tiles:
+		if entry.get("id", "") == BEER_TILE:
+			beer[int(entry["square"])] = square_point(entry["square"])
+			continue
 		var at := square_point(entry["square"])
 		var color: Color = entry.get("color", Color.ORCHID)
 		var tint := StandardMaterial3D.new()
@@ -204,6 +229,34 @@ func show_tiles(tiles: Array) -> void:
 		label.rotation.x = -PI * 0.5
 		label.position = at + Vector3(0, 0.002, square * 0.3)
 		_tiles.add_child(label)
+	_beer.sync(beer, _tiles_shown)
+	_tiles_shown = true
+
+
+## Throws beer onto `squares` (game indices), a beat apart, leaving a puddle on each until
+## dry_beer. The beer comes from the far (dark) side, the bartender's. With `animate` false the
+## puddles are just there.
+func spill_beer(squares: Array, animate := true) -> void:
+	var points := {}
+	for index: int in squares:
+		points[index] = square_point(index)
+	_beer.spill_all(points, animate)
+
+
+## Dries the beer off `squares` (game indices); a short fade unless `animate` is false.
+func dry_beer(squares: Array, animate := true) -> void:
+	for index: int in squares:
+		_beer.dry(index, animate)
+
+
+## The squares with a beer puddle on them.
+func beer_squares() -> Array:
+	return _beer.puddle_keys() if _beer else []
+
+
+## The beer node itself (common/beer_spill.gd), for its `settled` and `dried` signals.
+func beer() -> Node3D:
+	return _beer
 
 
 ## Lights the board: `chosen` the picked-up piece's square, `reach` where it can go (those
@@ -258,6 +311,8 @@ func set_play_layers(layers: int) -> void:
 	if _tiles:
 		for tile in _tiles.get_children():
 			(tile as VisualInstance3D).layers = layers
+	if _beer:
+		_beer.layers = layers
 	_layer_marks()
 
 
