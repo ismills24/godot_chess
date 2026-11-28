@@ -236,11 +236,12 @@ func show_tiles(tiles: Array) -> void:
 ## Throws beer onto `squares` (game indices), a beat apart, leaving a puddle on each until
 ## dry_beer. The beer comes from the far (dark) side, the bartender's. With `animate` false the
 ## puddles are just there.
-func spill_beer(squares: Array, animate := true) -> void:
+## With `source` (a world-space point, e.g. the lip of the bartender's mug) the beer arcs out of it.
+func spill_beer(squares: Array, animate := true, source: Variant = null) -> void:
 	var points := {}
 	for index: int in squares:
 		points[index] = square_point(index)
-	_beer.spill_all(points, animate)
+	_beer.spill_all(points, animate, _beer.to_local(source) if source is Vector3 else null)
 
 
 ## Dries the beer off `squares` (game indices); a short fade unless `animate` is false.

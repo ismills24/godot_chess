@@ -46,7 +46,9 @@ var _drop_mesh: SphereMesh
 
 ## Throws beer at square `key`, centred at `at`, after `delay` seconds. With `animate` false the
 ## puddle is simply there. Spilling where there's already a puddle splashes it again.
-func spill(key: int, at: Vector3, delay := 0.0, animate := true) -> void:
+## With `source` (a point in this node's space, e.g. a mug's lip) the beer arcs out of it
+## instead of in from `from_side`.
+func spill(key: int, at: Vector3, delay := 0.0, animate := true, source: Variant = null) -> void:
 	var puddle: MeshInstance3D = _puddles.get(key)
 	var fresh := puddle == null or puddle.has_meta("drying")
 	if fresh:
@@ -61,7 +63,9 @@ func spill(key: int, at: Vector3, delay := 0.0, animate := true) -> void:
 		return
 	if fresh:
 		material.set_shader_parameter("spread", 0.0)
-	var land := 0.0 if reduced_motion else _pour(at, delay)
+	var land := 0.0
+	if not reduced_motion:
+		land = _pour_from(source, at, delay) if source is Vector3 else _pour(at, delay)
 	_stop_spill(puddle)
 	var tween := puddle.create_tween()
 	puddle.set_meta("spill", tween)
@@ -76,11 +80,12 @@ func spill(key: int, at: Vector3, delay := 0.0, animate := true) -> void:
 	tween.chain().tween_callback(func() -> void: settled.emit(key))
 
 
-## Spills on several squares at once, a beat apart: `points` is {key: centre}.
-func spill_all(points: Dictionary, animate := true) -> void:
+## Spills on several squares at once, a beat apart: `points` is {key: centre}. With `source`
+## (a point in this node's space) every stream arcs out of it, see `spill`.
+func spill_all(points: Dictionary, animate := true, source: Variant = null) -> void:
 	var i := 0
 	for key: int in points:
-		spill(key, points[key], i * STAGGER, animate)
+		spill(key, points[key], i * STAGGER, animate, source)
 		i += 1
 
 
@@ -201,6 +206,22 @@ func _pour(at: Vector3, delay: float) -> float:
 		var land := at + Vector3(randf_range(-0.15, 0.15), 0, randf_range(-0.15, 0.15)) * s
 		_fly(start, land, s * randf_range(0.5, 0.65), flight, delay + i * 0.011,
 			s * randf_range(0.025, 0.045), i % 5 == 4)
+	return flight
+
+
+## A slop of beer thrown out of `source` (e.g. the lip of a mug slammed down) in a high arc
+## onto `at`. Returns when (after `delay`) the first drop lands.
+func _pour_from(source: Vector3, at: Vector3, delay: float) -> float:
+	var s := square_size
+	var distance := source.distance_to(at)
+	var flight := clampf(0.25 + distance / (s * 14.0), 0.35, 0.75)
+	var height := maxf(distance * 0.28, s * 0.6)
+	# Many small drops close together, so it reads as one rope of liquid rather than beads.
+	for i in 44:
+		var start := source + Vector3(randf_range(-0.06, 0.06), randf_range(0.0, 0.05), randf_range(-0.06, 0.06)) * s
+		var land := at + Vector3(randf_range(-0.16, 0.16), 0, randf_range(-0.16, 0.16)) * s
+		_fly(start, land, height * randf_range(0.94, 1.06), flight * randf_range(0.97, 1.03), delay + i * 0.007,
+			s * randf_range(0.014, 0.028), i % 6 == 5)
 	return flight
 
 

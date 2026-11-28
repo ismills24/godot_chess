@@ -11,6 +11,8 @@ extends "res://common/scene_kit.gd"
 signal served
 ## He's put his mug back down after a drink.
 signal drank
+## The mug has just hit the counter (mid-way through `drink`, before his arm folds back).
+signal mug_down
 
 const ChessSet := preload("res://inn/chess_set.gd")
 
@@ -168,8 +170,9 @@ func _folded(side: int) -> Vector3:
 
 ## Takes a long pull from `mug`: unfolds his left arm to grab it off the counter, lifts it to
 ## his mouth with his head tipped back, sets it down where it was and folds his arms again.
-## Emits `drank` when done.
-func drink(mug: Node3D) -> void:
+## Emits `mug_down` as it lands and `drank` when done. With `slam` he brings it down hard and
+## fast, the way that slops beer out of it.
+func drink(mug: Node3D, slam := false) -> void:
 	var home := mug.get_parent()
 	var arm := 0
 	var tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -186,11 +189,24 @@ func drink(mug: Node3D) -> void:
 	tween.parallel().tween_property(_head, "rotation:x", -0.35, 0.65)
 	tween.tween_interval(0.8)
 	# And back down onto the counter.
-	tween.tween_property(_torso, "rotation:x", 0.22, 0.6)
-	tween.parallel().tween_property(_shoulders[arm], "rotation", Vector3(-0.45, 0.0, 0.08), 0.6)
-	tween.parallel().tween_property(_elbows[arm], "rotation:x", -0.55, 0.6)
-	tween.parallel().tween_property(_head, "rotation:x", 0.0, 0.6)
-	tween.tween_callback(func() -> void: mug.reparent(home, true))
+	var down := 0.6
+	if slam:
+		# A beat up high, then down with a thump.
+		down = 0.24
+		tween.tween_property(_shoulders[arm], "rotation", Vector3(-1.2, 0.2, 0.05), 0.25)
+		tween.parallel().tween_property(_head, "rotation:x", 0.0, 0.25)
+		tween.tween_interval(0.12)
+		tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(_torso, "rotation:x", 0.22, down)
+	tween.parallel().tween_property(_shoulders[arm], "rotation", Vector3(-0.45, 0.0, 0.08), down)
+	tween.parallel().tween_property(_elbows[arm], "rotation:x", -0.55, down)
+	tween.parallel().tween_property(_head, "rotation:x", 0.0, down)
+	tween.tween_callback(func() -> void:
+		mug.reparent(home, true)
+		mug_down.emit())
+	if slam:
+		tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tween.tween_interval(0.35)
 	tween.tween_property(_torso, "rotation:x", 0.1, 0.55)
 	tween.parallel().tween_property(_shoulders[arm], "rotation", _folded(arm), 0.55)
 	tween.parallel().tween_property(_elbows[arm], "rotation:x", -1.65, 0.55)

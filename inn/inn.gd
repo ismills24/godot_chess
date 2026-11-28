@@ -71,9 +71,15 @@ const LEAN_ZOOM := 0.72
 const AUTOPLAY_ARG := "--inn-autoplay"
 ## How long the bartender's hand takes to get to his piece.
 const REACH_SECONDS := 0.28
-## He drinks from his mug after every few of his moves, once his hand is back from the board.
-const DRINK_EVERY := Vector2i(2, 3)
-const DRINK_AFTER_MOVE := 1.1
+## He drinks whenever the beer-spill board effect fires: a pull from his mug, then he slams it
+## down and beer slops out of it onto the squares that turned Slippery. He starts this long after
+## a move (his hand back from the board after his own, a beat after yours).
+const DRINK_AFTER_HIS_MOVE := 1.0
+const DRINK_AFTER_YOUR_MOVE := 0.5
+## The lip of his mug, above where it stands (inn_world.gd builds it at size 2: 0.26 tall).
+const MUG_LIP := Vector3(0, 0.27, 0)
+## The tile id the beer spill leaves.
+const BEER_TILE := "slippery"
 
 @export var skip_intro := false
 
@@ -121,9 +127,9 @@ var _chosen := -1
 var _reach: Array = []
 var _threat: Array = []
 var _last: Array = []
-## How many moves the bartender has made, and after which one he next drinks.
-var _his_moves := 0
-var _next_drink := DRINK_EVERY.x
+## Slippery squares the game already has that he hasn't poured out of his mug yet.
+var _pending_beer: Array = []
+var _drinking := false
 
 
 func _ready() -> void:
@@ -144,7 +150,7 @@ func _ready() -> void:
 	_match.Begin(false)
 	_board.resize(_match.Width, _match.Height)
 	_board.show_pieces(_match.Pieces(), false)
-	_board.show_tiles(_match.Tiles())
+	_show_tiles()
 	_world.set_reduced_motion(_reduced_motion)
 	_bartender.set_reduced_motion(_reduced_motion)
 	_build_walk()
@@ -337,7 +343,7 @@ func _begin_play() -> void:
 
 func _on_refreshed() -> void:
 	_board.show_pieces(_match.Pieces(), false)
-	_board.show_tiles(_match.Tiles())
+	_show_tiles()
 	_chosen = -1
 	_refresh_marks()
 	_undo_button.disabled = not _match.CanUndo()
@@ -352,27 +358,54 @@ func _on_moved(from: int, to: int, by_bartender: bool) -> void:
 		_bartender.reach()
 		await get_tree().create_timer(REACH_SECONDS).timeout
 	_board.show_pieces(_match.Pieces())
-	_board.show_tiles(_match.Tiles())
+	_show_tiles(DRINK_AFTER_HIS_MOVE if by_bartender else DRINK_AFTER_YOUR_MOVE)
 	_last = [from, to]
 	_chosen = -1
 	_refresh_marks()
 	var check: int = _match.CheckedKing()
 	if _match.IsPlayerTurn():
 		_say("Check. Your move." if check >= 0 else "Your move.")
-	if by_bartender:
-		_his_moves += 1
-		if _his_moves >= _next_drink:
-			_next_drink = _his_moves + randi_range(DRINK_EVERY.x, DRINK_EVERY.y)
-			_drink()
 
 
-## A pull from his mug while you think; his next reply waits until it's back on the counter.
-func _drink() -> void:
+## Shows the game's special squares, except Slippery ones that just appeared during play: those
+## are held back until the bartender has had his drink and slops them out of his mug, `delay`
+## seconds from now.
+func _show_tiles(delay := 0.0) -> void:
+	var tiles: Array = _match.Tiles()
+	if _playing:
+		var shown: Array = _board.beer_squares()
+		for entry: Dictionary in tiles:
+			var square := int(entry["square"])
+			if entry.get("id", "") == BEER_TILE and square not in shown and square not in _pending_beer:
+				_pending_beer.append(square)
+		if not _pending_beer.is_empty() and not _drinking:
+			_spill_from_mug(delay)
+	_board.show_tiles(tiles.filter(func(entry: Dictionary) -> bool:
+		return not (entry.get("id", "") == BEER_TILE and int(entry["square"]) in _pending_beer)))
+
+
+## He drinks, slams the mug down and the beer in `_pending_beer` slops out of it onto the board.
+## His next reply waits until the mug is back on the counter.
+func _spill_from_mug(delay: float) -> void:
+	_drinking = true
 	_match.Busy = true
-	await get_tree().create_timer(DRINK_AFTER_MOVE).timeout
-	_bartender.drink(_world.keeper_mug)
+	await get_tree().create_timer(delay).timeout
+	_bartender.drink(_world.keeper_mug, true)
+	await _bartender.mug_down
+	# Only what's still slippery (an undo may have taken some back).
+	var live: Array = _match.Tiles().filter(func(entry: Dictionary) -> bool:
+		return entry.get("id", "") == BEER_TILE).map(func(entry: Dictionary) -> int: return int(entry["square"]))
+	var squares := _pending_beer.filter(func(square: int) -> bool: return square in live)
+	_pending_beer.clear()
+	_board.spill_beer(squares, true, _world.keeper_mug.global_position + MUG_LIP)
+	_show_tiles()
 	await _bartender.drank
+	_drinking = false
 	_match.Busy = false
+	# Your move was held while he drank.
+	_refresh_marks()
+	if _match.IsPlayerTurn():
+		_say("Check. Your move." if _match.CheckedKing() >= 0 else "Your move.")
 
 
 func _on_finished(winner: String) -> void:

@@ -101,7 +101,8 @@ public partial class InnMatch : Node
         _readyForInput = !_finished;
         _decisionStart = Stopwatch.GetTimestamp();
     }
-    public bool IsPlayerTurn() => _readyForInput && !_finished && !_autoplay && _state.SideToMove == Side.White;
+    /// <summary>Your move, and nothing (like the bartender's drink, <see cref="Busy"/>) is holding the game up.</summary>
+    public bool IsPlayerTurn() => _readyForInput && !_finished && !_autoplay && !Busy && _state.SideToMove == Side.White;
     public bool CanUndo() => _readyForInput && !_finished && Encounter().Data.As<BattleState>("battle").UndoPositions.Count > 0;
     public bool IsMine(int square) => square >= 0 && square < _state.Area && IsPlayerTurn()
         && _state.PieceAt(square) is { Side: Side.White };
@@ -231,7 +232,7 @@ public partial class InnMatch : Node
             return;
         }
         if (!_readyForInput && !_finished && _sinceFrame >= 0.45) FinishPlayback();
-        if (_autoplay && _readyForInput && !_finished && _sinceFrame >= 0.8)
+        if (_autoplay && _readyForInput && !Busy && !_finished && _sinceFrame >= 0.8)
         {
             var agent = new AgentFactory().Create(AgentProfile.Novice with { TimeBudgetMs = 0, NodeBudget = 2000 });
             if (agent.Decide(_state.Clone()).Move is { } move)
