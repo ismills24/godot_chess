@@ -110,7 +110,8 @@ public partial class InnMatch : Node
         }
         return list;
     }
-    /// <summary>The board's special squares (walls, fire, tombs...): {square, name, color}.</summary>
+    /// <summary>The board's special squares (walls, fire, tombs...): {square, id, name, color}. chess_set.gd's
+    /// show_tiles draws Slippery ones ("slippery") as beer puddles.</summary>
     public Godot.Collections.Array<Godot.Collections.Dictionary> Tiles()
     {
         var list = new Godot.Collections.Array<Godot.Collections.Dictionary>();
@@ -118,14 +119,14 @@ public partial class InnMatch : Node
         {
             var tile = _state.TileAt(sq);
             if (tile.Def.IsDefault) continue;
-            list.Add(new Godot.Collections.Dictionary { ["square"] = sq, ["name"] = tile.Def.Name, ["color"] = TileColor(tile.Def.Id) });
+            list.Add(new Godot.Collections.Dictionary { ["square"] = sq, ["id"] = tile.Def.Id, ["name"] = tile.Def.Name, ["color"] = TileColor(tile.Def.Id) });
         }
         return list;
     }
     private static Color TileColor(string id) => id switch
     {
         "wall" => Colors.Silver, "guardian" => Colors.Gold, "fog" => Colors.LightSteelBlue,
-        "fire" => new Color(1f, 0.45f, 0.1f), "freeze" => new Color(0.55f, 0.85f, 1f), "tomb" => new Color(0.6f, 0.55f, 0.5f),
+        "fire" => new Color(1f, 0.45f, 0.1f), "slippery" => new Color(1f, 0.72f, 0.25f), "freeze" => new Color(0.55f, 0.85f, 1f), "tomb" => new Color(0.6f, 0.55f, 0.5f),
         _ => Colors.Orchid,
     };
     /// <summary>What's on a square, for the hover line: "Your Knight: Exploding, Phantom".</summary>
