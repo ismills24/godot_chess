@@ -180,6 +180,28 @@ public class RandomTilesTests
     }
 
     [Fact]
+    public void Beer_spilled_under_a_piece_leaves_it_alone_and_only_moving_onto_beer_slides()
+    {
+        var s = Rogue("7k/8/8/8/3R4/8/8/K7 w - - 0 1");
+        var rook = At(s, "d4")!;
+        var blackKing = At(s, "h8")!;
+        AddEffect(s, new TurnDelayCondition(1), Spill(64, includeOccupied: true));
+        Play(s, "a1b1");
+        Assert.Equal(64, SquaresWith(s, SlipperyTile.Instance).Count);
+        // Pieces standing where the beer landed don't move.
+        Assert.Same(rook, At(s, "d4"));
+        Assert.NotNull(At(s, "b1"));
+        Assert.Same(blackKing, At(s, "h8"));
+
+        Play(s, "h8h7"); // Black slides down the h-file
+        // Leaving a slippery square doesn't slip; arriving on one does, so the rook rides the ice to d8.
+        Play(s, "d4d5");
+        Assert.Null(At(s, "d4"));
+        Assert.Null(At(s, "d5"));
+        Assert.Same(rook, At(s, "d8"));
+    }
+
+    [Fact]
     public void A_count_above_the_eligible_squares_places_on_all_of_them_and_no_more()
     {
         var s = Rogue(Kings);
