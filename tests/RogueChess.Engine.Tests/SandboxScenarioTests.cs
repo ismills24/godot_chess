@@ -40,6 +40,29 @@ public class SandboxScenarioTests
     }
 
     [Fact]
+    public void Beer_spill_spills_three_slippery_squares_on_turn_two_that_dry_up_after_four_turns()
+    {
+        var s = Load("08_beer_spill.json");
+        int Slippery() { int n = 0; for (int sq = 0; sq < s.Area; sq++) if (s.TileAt(sq).Def == SlipperyTile.Instance) n++; return n; }
+
+        Play(s, "e1d1");
+        Assert.Equal(0, Slippery());
+        var trace = Game.PlayTurn(s, MoveText.FindLegal(s, "e8d8")!.Value, new ResolveOptions(Trace: true)).Trace!;
+        Assert.Equal(3, Slippery());
+        Assert.Equal(3, Content.BoardEffects.RandomTilesEffect.Placements(trace, "beer-spill").Count);
+        void PlayAnything()
+        {
+            var moves = new System.Collections.Generic.List<Move>();
+            Rules.MoveGenerator.GenerateLegal(s, moves);
+            Assert.True(Game.PlayTurn(s, moves[0]).Accepted);
+        }
+        for (int turn = 3; turn <= 5; turn++) PlayAnything();
+        Assert.Equal(3, Slippery()); // turns 3-5: 4 → 1 turn left
+        PlayAnything();
+        Assert.Equal(0, Slippery()); // turn 6: dried up
+    }
+
+    [Fact]
     public void Explosion_chain_plays_as_described()
     {
         var s = Load("01_explosion_chain.json");

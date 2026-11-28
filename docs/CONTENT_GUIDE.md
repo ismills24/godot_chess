@@ -184,6 +184,18 @@ Map format (same as the prototype):
 | `CheckerboardWipe` | `targetColor` ("white" = x+y even), `freezeDuration` (2), `alternating` (false): freezes every unfrozen piece on that colour |
 | `TidalWave` | `direction` (required: north/south/east/west), `squares` (required: `["a6", ...]`), `strength` (1, at most 32): every piece on those squares moves one square toward that edge, `strength` times (one wave per step); pieces pulled off the board are destroyed; walls and pieces that stay put block |
 | `Reinforcements` | `roster` (required: a roster id), `pieceValue` (required, 1 to 100), `abilityValue` (0, at most 100), `side` ("white"; only white or black accepted), `squares` (required: `["a7", ...]`): buys a random set from the roster with those budgets (the encounter army generator, no king, no forced pawns) and spawns it on the free squares of the area (no piece, no wall or other passage/landing-blocking tile), most valuable first; what doesn't fit doesn't arrive |
+| `RandomTiles` | `count` (required, at least 1), `tile` + `duration` (0 = stays) + `params`, or a `tiles` list of `{ "tile", "duration" (0), "weight" (1), "params" }`; `includeOccupied` (false), `replaceTiles` (false), `squares` (whole board), `cause` ("random-tiles"): puts a tile on `count` random squares (all eligible ones if fewer), each type drawn by weight; a type's `params` set its variables by name (`TileDef.VarNames`: Fire/Freeze take `turns`, `statusTurns`). Placed tiles with a duration are timed tiles (below). The turn's `TileChanged` facts with that cause say what landed where (`RandomTilesEffect.Placements(trace, cause)`) |
+
+```json
+{ "name": "Beer spill", "condition": { "type": "TurnInterval", "params": { "interval": 6 } },
+  "effect": { "type": "RandomTiles", "params": { "count": 3, "tile": "slippery", "duration": 4, "cause": "beer-spill" } } }
+```
+
+**Timed tiles.** Any tile can carry a lifetime (`GameState.SetTimedTile`, `Proposal.ChangeTimedTile`,
+`Tile.IsTimed` / `Tile.TurnsLeft`). It is one extra variable after the def's own, so it is hashed, undone and
+snapshotted. The built-in rules count it down at every turn end (both sides' turns count) and turn the tile back
+into plain floor when it runs out (cause `Causes.TileExpired`). A tile placed for N turns during a turn end stays
+for the next N turns. Fire and Freeze keep their own timer too; whichever runs out first clears the tile.
 
 ## Recipe 7b: a roster
 

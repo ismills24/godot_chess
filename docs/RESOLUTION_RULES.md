@@ -236,8 +236,9 @@ is settled like any other.
 | Wall tile | Trigger | `Moved` onto this square → `ChangeTile(standard)` |
 | Tomb tile | Modifier | Prevent: an ally's `Move` onto the empty tomb (including a Bouncer knock or Piercing jump made in the redirect layer) → `Revive` the entombed piece + `ChangeTile(standard)`; the ally stays put |
 | OnFire, Frozen | Trigger | `TurnEnded` → `AddVar(turnsLeft, -1)`; `VarChanged` to 0 → remove or destroy |
-| WindGust, CheckerboardWipe, WallsPlacement, TidalWave, Reinforcements | Trigger (global) | `TurnEnded` with condition variables in state; multi-step effects (TidalWave strength > 1) also react to their own steps-left `VarChanged` |
+| WindGust, CheckerboardWipe, WallsPlacement, TidalWave, Reinforcements, RandomTiles | Trigger (global) | `TurnEnded` with condition variables in state; multi-step effects (TidalWave strength > 1) also react to their own steps-left `VarChanged` |
 | Pawn promotion | Built-in rule trigger | `Moved` to the far rank → `ChangeDef` |
+| Timed tiles (any tile with a lifetime) | Built-in rule trigger | `TurnEnded` → `AddVar(lifetime, -1)`, or `ChangeTile(standard)` (`tile-expired`) on the last turn |
 | RoyalPromotion relic | Trigger (global) | `Moved` to the far rank → `ChangeDef` |
 
 ---

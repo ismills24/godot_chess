@@ -1,0 +1,29 @@
+{
+  "name": "Beer spill",
+  "description": "The bartender's RandomTiles effect: at the end of turn 2 and every 6 turns after, 3 random empty squares become Slippery for 4 turns (cause \"beer-spill\"), then dry up. Move a rook or bishop onto the beer to watch it slide.",
+  "rules": "rogue",
+  "width": 8,
+  "height": 8,
+  "startingPlayer": "White",
+  "pieces": [
+    { "type": "King", "color": "White", "x": 4, "y": 0, "decorators": [] },
+    { "type": "Rook", "color": "White", "x": 0, "y": 0, "decorators": [] },
+    { "type": "Bishop", "color": "White", "x": 2, "y": 0, "decorators": [] },
+    { "type": "King", "color": "Black", "x": 4, "y": 7, "decorators": [] },
+    { "type": "Rook", "color": "Black", "x": 7, "y": 7, "decorators": [] },
+    { "type": "Bishop", "color": "Black", "x": 5, "y": 7, "decorators": [] }
+  ],
+  "tiles": [],
+  "boardEffects": [
+    {
+      "id": "beer-spill",
+      "name": "Beer spill",
+      "description": "Spills beer on 3 random empty squares; it stays slippery for 4 turns.",
+      "condition": { "type": "TurnInterval", "params": { "interval": 6, "startTurn": 2 } },
+      "effect": {
+        "type": "RandomTiles",
+        "params": { "count": 3, "tile": "slippery", "duration": 4, "cause": "beer-spill" }
+      }
+    }
+  ]
+}
